@@ -6,10 +6,11 @@ import { state } from './state.js';
 import { dom, $, $$ } from './dom.js';
 import { renderCalendar } from './calendar.js';
 import { renderEntries, toggleSort, initContextMenu } from './entries.js';
-import { buildSizeCarousel, navigateCarousel, openDrawer, closeDrawer, onChooseSize, onImageSelected, onConfirmYes, onConfirmNo } from './drawer.js';
+import { buildSizeCarousel, buildTodoSizeCarousel, navigateCarousel, navigateTodoCarousel, openDrawer, closeDrawer, onChooseSize, onChooseTodoSize, onImageSelected, onConfirmYes, onConfirmNo } from './drawer.js';
 import { openAddModal, closeAddModal, showModalStep, bindColorPicker, bindVisibilityOptions, createFile, createDiary } from './modals.js';
 import { backToMain, saveDiary, changeFontSize } from './editor.js';
 import { cancelPlacement, rerenderPlacedWidgets } from './widgets.js';
+import { bindTodoComposeSheetEvents, bindTodoGroupRenameEvents, bindTodoResizeSheetEvents } from './todo.js';
 import { updateGridDimensionsFromContainer, buildLegoGrid } from './grid.js';
 
 
@@ -19,6 +20,10 @@ function init() {
   renderEntries();
   initContextMenu();
   buildSizeCarousel();
+  buildTodoSizeCarousel();
+  bindTodoComposeSheetEvents();
+  bindTodoGroupRenameEvents();
+  bindTodoResizeSheetEvents();
   bindEvents();
 }
 
@@ -88,6 +93,11 @@ function bindEvents() {
 
   // Choose size
   dom.btnChooseSize.addEventListener('click', onChooseSize);
+  dom.btnChooseTodoSize.addEventListener('click', onChooseTodoSize);
+
+  // To-Do carousel navigation
+  dom.todoCarouselPrev.addEventListener('click', () => navigateTodoCarousel(-1));
+  dom.todoCarouselNext.addEventListener('click', () => navigateTodoCarousel(1));
 
   // File input change
   dom.fileInputHidden.addEventListener('change', onImageSelected);

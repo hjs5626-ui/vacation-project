@@ -5,7 +5,8 @@
 import { state } from './state.js';
 import { dom } from './dom.js';
 import { showToast } from './utils.js';
-import { checkPlacement, markCellsOccupied, freeCells, clearCellHighlights, buildLegoGrid } from './grid.js';
+import { checkPlacement, markCellsOccupied, freeCells, clearCellHighlights, buildLegoGrid, reserveMapArea } from './grid.js';
+import { buildTodoWidgetShell, ensureTodoWidgetData, bindTodoWidgetEvents, refreshTodoTabs, openTodoResizeSheet } from './todo.js';
 
 
 /* ── Place Widget ────────────────────────────────────── */
@@ -16,6 +17,8 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
   if (state.movingWidget) {
     widgetId = state.movingWidget.id;
     type = state.movingWidget.type;
+  } else if (state.placementType) {
+    type = state.placementType;
   }
 
   markCellsOccupied(row, col, wCols, wRows, widgetId);
@@ -23,12 +26,25 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
   const widgetData = {
     id: widgetId,
     type,
-    row,
-    col,
-    cols: wCols,
-    rows: wRows,
+    row: Number(row),
+    col: Number(col),
+    cols: Number(wCols),
+    rows: Number(wRows),
     imageData,
   };
+
+  if (type === 'todo') {
+    if (state.movingWidget) {
+      widgetData.groups = state.movingWidget.groups ?? [];
+      widgetData.activeTab = state.movingWidget.activeTab ?? 'all';
+      widgetData.tasks = state.movingWidget.tasks ?? [];
+    } else {
+      widgetData.groups = [];
+      widgetData.activeTab = 'all';
+      widgetData.tasks = [];
+    }
+  }
+
   state.widgets.push(widgetData);
 
   renderPlacedWidget(widgetData);
@@ -55,10 +71,28 @@ export function renderPlacedWidget(w) {
   el.style.width = width + 'px';
   el.style.height = height + 'px';
 
-  el.innerHTML = `
-    <img src="${w.imageData}" alt="Widget" />
-    <button class="widget-delete" title="Remove widget">✕</button>
-  `;
+  if (w.type === 'todo') {
+    el.classList.add('placed-widget--todo');
+    el.dataset.widgetCols = String(w.cols);
+    el.dataset.widgetRows = String(w.rows);
+    ensureTodoWidgetData(w);
+    el.innerHTML = buildTodoWidgetShell();
+    refreshTodoTabs(el, w);
+    bindTodoWidgetEvents(el);
+
+    const resizeBtn = el.querySelector('.todo-widget-resize');
+    if (resizeBtn) {
+      resizeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openTodoResizeSheet(w.id);
+      });
+    }
+  } else {
+    el.innerHTML = `
+      <img src="${w.imageData}" alt="Widget" />
+      <button class="widget-delete" title="Remove widget">✕</button>
+    `;
+  }
 
   el.querySelector('.widget-delete').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -67,17 +101,50 @@ export function renderPlacedWidget(w) {
 
   // Long press to pickup and move
   let pressTimer;
+  let pressStartX = 0;
+  let pressStartY = 0;
+  const DRAG_CANCEL_PX = 8;
+
+  const shouldSkipPressStart = (target) => {
+    if (target.closest('button')) return true;
+    if (w.type === 'todo' && target.closest('.todo-widget-header')) return true;
+    return false;
+  };
+
   const cancelPress = () => clearTimeout(pressTimer);
-  
-  el.addEventListener('touchstart', (e) => {
+
+  const startPress = (clientX, clientY) => {
+    pressStartX = clientX;
+    pressStartY = clientY;
     pressTimer = setTimeout(() => pickupWidget(w), 500);
-  });
+  };
+
+  const trackPressMove = (clientX, clientY) => {
+    if (!pressTimer) return;
+    const dx = clientX - pressStartX;
+    const dy = clientY - pressStartY;
+    if (Math.hypot(dx, dy) > DRAG_CANCEL_PX) cancelPress();
+  };
+
+  el.addEventListener('touchstart', (e) => {
+    if (shouldSkipPressStart(e.target)) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    startPress(touch.clientX, touch.clientY);
+  }, { passive: true });
   el.addEventListener('touchend', cancelPress);
-  el.addEventListener('touchmove', cancelPress);
+  el.addEventListener('touchmove', (e) => {
+    const touch = e.touches[0];
+    if (touch) trackPressMove(touch.clientX, touch.clientY);
+  }, { passive: true });
 
   el.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    pressTimer = setTimeout(() => pickupWidget(w), 500);
+    if (shouldSkipPressStart(e.target)) return;
+    startPress(e.clientX, e.clientY);
+  });
+  el.addEventListener('mousemove', (e) => {
+    trackPressMove(e.clientX, e.clientY);
   });
   el.addEventListener('mouseup', cancelPress);
   el.addEventListener('mouseleave', cancelPress);
@@ -112,6 +179,41 @@ export function removeWidget(widgetId) {
 }
 
 
+export function resizeTodoWidget(widgetId, newCols, newRows) {
+  const w = state.widgets.find((x) => x.id === widgetId);
+  if (!w || w.type !== 'todo') return false;
+
+  const row = Number(w.row);
+  const col = Number(w.col);
+  const oldCols = Number(w.cols);
+  const oldRows = Number(w.rows);
+  const cols = Number(newCols);
+  const rows = Number(newRows);
+
+  if (oldCols === cols && oldRows === rows) return true;
+
+  freeCells(widgetId);
+
+  if (!checkPlacement(row, col, cols, rows)) {
+    markCellsOccupied(row, col, oldCols, oldRows, widgetId);
+    showToast('현재 위치에서는 해당 크기로 변경할 수 없습니다.');
+    return false;
+  }
+
+  w.row = row;
+  w.col = col;
+  w.cols = cols;
+  w.rows = rows;
+  markCellsOccupied(row, col, cols, rows, widgetId);
+
+  const el = dom.legoGrid.querySelector(`.placed-widget[data-widget-id="${widgetId}"]`);
+  if (el) el.remove();
+
+  renderPlacedWidget(w);
+  return true;
+}
+
+
 /* ── Pickup Widget (Move) ────────────────────────────── */
 export function pickupWidget(w) {
   freeCells(w.id);
@@ -120,7 +222,7 @@ export function pickupWidget(w) {
   if (el) el.remove();
 
   state.movingWidget = w; // Store to restore if cancelled
-  enterPlacementMode({ cols: w.cols, rows: w.rows }, w.imageData);
+  enterPlacementMode({ cols: w.cols, rows: w.rows }, w.imageData, w.type || 'gallery');
 }
 
 
@@ -144,6 +246,8 @@ export function rerenderPlacedWidgets() {
   state.occupiedCells = {};
   dom.legoGrid.querySelectorAll('.grid-cell').forEach((c) => c.classList.remove('occupied'));
 
+  reserveMapArea();
+
   const currentWidgets = [...state.widgets];
   state.widgets = [];
   currentWidgets.forEach((w) => {
@@ -157,10 +261,11 @@ export function rerenderPlacedWidgets() {
 
 
 /* ── Placement Mode ──────────────────────────────────── */
-export function enterPlacementMode(size, imageData) {
+export function enterPlacementMode(size, imageData, type) {
   state.placementMode = true;
   state.placementSize = size;
   state.placementImage = imageData;
+  state.placementType = type;
   dom.placementOverlay.classList.remove('hidden');
   dom.fabAdd.style.display = 'none';
 }
@@ -169,6 +274,7 @@ export function exitPlacementMode() {
   state.placementMode = false;
   state.placementSize = null;
   state.placementImage = null;
+  state.placementType = null;
   state.movingWidget = null;
   dom.placementOverlay.classList.add('hidden');
   dom.fabAdd.style.display = '';
