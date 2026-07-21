@@ -24,6 +24,7 @@ export const state = {
   // Carousel
   carouselIndex: 0,
   todoCarouselIndex: 0,
+  memoCarouselIndex: 0,
   widgetSizes: [
     { label: '2×2', subtitle: 'Square — Small', cols: 2, rows: 2 },
     { label: '2×3', subtitle: 'Vertical — Small', cols: 2, rows: 3 },
@@ -38,6 +39,12 @@ export const state = {
   // Font size for editor title
   titleFontSize: 28,
 };
+
+export const memoWidgetSizes = [
+  { label: '3×3', subtitle: 'Small', cols: 3, rows: 3 },
+  { label: '4×4', subtitle: 'Medium', cols: 4, rows: 4 },
+  { label: '6×5', subtitle: 'Large', cols: 6, rows: 5 },
+];
 
 
 /* ── Persistence ────────────────────────────────────── */

@@ -6,12 +6,13 @@ import { state } from './state.js';
 import { dom, $, $$ } from './dom.js';
 import { renderCalendar } from './calendar.js';
 import { renderEntries, toggleSort, initContextMenu } from './entries.js';
-import { buildSizeCarousel, buildTodoSizeCarousel, navigateCarousel, navigateTodoCarousel, openDrawer, closeDrawer, onChooseSize, onChooseTodoSize, onImageSelected, onConfirmYes, onConfirmNo } from './drawer.js';
+import { buildSizeCarousel, buildTodoSizeCarousel, buildMemoSizeCarousel, navigateCarousel, navigateTodoCarousel, navigateMemoCarousel, openDrawer, closeDrawer, onChooseSize, onChooseTodoSize, onChooseMemoSize, onImageSelected, onConfirmYes, onConfirmNo } from './drawer.js';
 import { openAddModal, closeAddModal, showModalStep, bindColorPicker, bindVisibilityOptions, createFile, createDiary } from './modals.js';
 import { backToMain, saveDiary, changeFontSize } from './editor.js';
 import { cancelPlacement, rerenderPlacedWidgets } from './widgets.js';
-import { bindTodoComposeSheetEvents, bindTodoGroupRenameEvents, bindTodoResizeSheetEvents } from './todo.js';
 import { updateGridDimensionsFromContainer, buildLegoGrid } from './grid.js';
+import { bindTodoComposeSheetEvents, bindTodoGroupRenameEvents, bindTodoResizeSheetEvents } from './todo.js';
+import { bindMemoFullscreenEvents, closeMemoFullscreen } from './memo.js';
 
 
 /* ── Initialization ──────────────────────────────────── */
@@ -21,9 +22,11 @@ function init() {
   initContextMenu();
   buildSizeCarousel();
   buildTodoSizeCarousel();
+  buildMemoSizeCarousel();
   bindTodoComposeSheetEvents();
   bindTodoGroupRenameEvents();
   bindTodoResizeSheetEvents();
+  bindMemoFullscreenEvents();
   bindEvents();
 }
 
@@ -63,7 +66,10 @@ function bindEvents() {
   dom.calNext.addEventListener('click', () => { state.calendarDate.setMonth(state.calendarDate.getMonth() + 1); renderCalendar(); });
 
   // Editor
-  dom.editorBack.addEventListener('click', backToMain);
+  dom.editorBack.addEventListener('click', () => {
+    closeMemoFullscreen();
+    backToMain();
+  });
   dom.editorSave.addEventListener('click', saveDiary);
   dom.fontDec.addEventListener('click', () => changeFontSize(-2));
   dom.fontInc.addEventListener('click', () => changeFontSize(2));
@@ -94,6 +100,11 @@ function bindEvents() {
   // Choose size
   dom.btnChooseSize.addEventListener('click', onChooseSize);
   dom.btnChooseTodoSize.addEventListener('click', onChooseTodoSize);
+
+  // Memo carousel navigation
+  dom.memoCarouselPrev.addEventListener('click', () => navigateMemoCarousel(-1));
+  dom.memoCarouselNext.addEventListener('click', () => navigateMemoCarousel(1));
+  dom.btnChooseMemoSize.addEventListener('click', onChooseMemoSize);
 
   // To-Do carousel navigation
   dom.todoCarouselPrev.addEventListener('click', () => navigateTodoCarousel(-1));

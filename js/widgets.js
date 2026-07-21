@@ -7,6 +7,7 @@ import { dom } from './dom.js';
 import { showToast } from './utils.js';
 import { checkPlacement, markCellsOccupied, freeCells, clearCellHighlights, buildLegoGrid, reserveMapArea } from './grid.js';
 import { buildTodoWidgetShell, ensureTodoWidgetData, bindTodoWidgetEvents, refreshTodoTabs, openTodoResizeSheet } from './todo.js';
+import { buildMemoWidgetShell, ensureMemoWidgetData, initMemoSessionState, bindMemoWidgetEvents, renderMemoPreview, closeMemoFullscreen } from './memo.js';
 
 
 /* ── Place Widget ────────────────────────────────────── */
@@ -43,6 +44,21 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
       widgetData.activeTab = 'all';
       widgetData.tasks = [];
     }
+  }
+
+  if (type === 'memo') {
+    if (state.movingWidget) {
+      widgetData.memos = state.movingWidget.memos ?? [];
+      widgetData.profile = state.movingWidget.profile
+        ? { ...state.movingWidget.profile }
+        : undefined;
+      widgetData.sortBy = state.movingWidget.sortBy;
+      widgetData.activeCategory = state.movingWidget.activeCategory;
+    } else {
+      widgetData.memos = [];
+    }
+    ensureMemoWidgetData(widgetData);
+    initMemoSessionState(widgetData);
   }
 
   state.widgets.push(widgetData);
@@ -87,6 +103,15 @@ export function renderPlacedWidget(w) {
         openTodoResizeSheet(w.id);
       });
     }
+  } else if (w.type === 'memo') {
+    el.classList.add('placed-widget--memo');
+    el.dataset.widgetCols = String(w.cols);
+    el.dataset.widgetRows = String(w.rows);
+    ensureMemoWidgetData(w);
+    initMemoSessionState(w);
+    el.innerHTML = buildMemoWidgetShell();
+    renderMemoPreview(el, w);
+    bindMemoWidgetEvents(el);
   } else {
     el.innerHTML = `
       <img src="${w.imageData}" alt="Widget" />
@@ -94,10 +119,13 @@ export function renderPlacedWidget(w) {
     `;
   }
 
-  el.querySelector('.widget-delete').addEventListener('click', (e) => {
-    e.stopPropagation();
-    removeWidget(w.id);
-  });
+  const deleteBtn = el.querySelector('.widget-delete');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeWidget(w.id);
+    });
+  }
 
   // Long press to pickup and move
   let pressTimer;
@@ -106,8 +134,9 @@ export function renderPlacedWidget(w) {
   const DRAG_CANCEL_PX = 8;
 
   const shouldSkipPressStart = (target) => {
-    if (target.closest('button')) return true;
+    if (target.closest('button, input, textarea, select')) return true;
     if (w.type === 'todo' && target.closest('.todo-widget-header')) return true;
+    if (w.type === 'memo' && target.closest('.memo-preview-open, .memo-preview-body')) return true;
     return false;
   };
 
@@ -230,6 +259,11 @@ export function pickupWidget(w) {
 export function restoreWidget(w) {
   const widgetId = `w_${state.widgetIdCounter++}`;
   const widgetData = { ...w, id: widgetId };
+
+  if (widgetData.type === 'memo') {
+    initMemoSessionState(widgetData);
+    closeMemoFullscreen();
+  }
 
   if (checkPlacement(w.row, w.col, w.cols, w.rows)) {
     markCellsOccupied(w.row, w.col, w.cols, w.rows, widgetId);
