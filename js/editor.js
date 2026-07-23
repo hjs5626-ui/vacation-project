@@ -8,6 +8,7 @@ import { showToast, navigateTo } from './utils.js';
 import { updateGridDimensionsFromContainer, buildLegoGrid } from './grid.js';
 import { restoreWidget } from './widgets.js';
 import { renderEntries } from './entries.js';
+import { ensureMemoWidgetData } from './memo.js';
 
 
 /* ── Open Editor ─────────────────────────────────────── */
@@ -40,21 +41,63 @@ export function openEditor(entry) {
 
 
 /* ── Save Diary ──────────────────────────────────────── */
-export function saveDiary() {
-  if (!state.currentDiary) return;
-
-  state.currentDiary.title = dom.editorTitle.value.trim() || 'Untitled';
-  state.currentDiary.titleFontSize = state.titleFontSize;
-
-  state.currentDiary.widgets = state.widgets.map((w) => ({
+function serializeWidget(w) {
+  const base = {
     id: w.id,
     type: w.type,
     row: w.row,
     col: w.col,
     cols: w.cols,
     rows: w.rows,
-    imageData: w.imageData,
-  }));
+  };
+
+  if (w.type === 'gallery') {
+    return { ...base, imageData: w.imageData };
+  }
+
+  if (w.type === 'todo') {
+    return {
+      ...base,
+      groups: w.groups ?? [],
+      tasks: w.tasks ?? [],
+      activeTab: w.activeTab ?? 'all',
+    };
+  }
+
+  if (w.type === 'memo') {
+    ensureMemoWidgetData(w);
+    return {
+      ...base,
+      profile: {
+        coverImage: w.profile.coverImage ?? '',
+        headerText: w.profile.headerText ?? '',
+        profileImage: w.profile.profileImage ?? '',
+        displayName: w.profile.displayName ?? 'Guest',
+      },
+      sortBy: w.sortBy,
+      activeCategory: w.activeCategory,
+      memos: w.memos.map((m) => ({
+        id: m.id,
+        title: m.title,
+        content: m.content,
+        category: m.category ?? 'default',
+        coverImage: m.coverImage ?? '',
+        createdAt: m.createdAt,
+        updatedAt: m.updatedAt,
+      })),
+    };
+  }
+
+  return { ...base, imageData: w.imageData };
+}
+
+export function saveDiary() {
+  if (!state.currentDiary) return;
+
+  state.currentDiary.title = dom.editorTitle.value.trim() || 'Untitled';
+  state.currentDiary.titleFontSize = state.titleFontSize;
+
+  state.currentDiary.widgets = state.widgets.map(serializeWidget);
 
   saveEntries();
   showToast('Diary saved!');

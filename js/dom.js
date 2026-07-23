@@ -88,6 +88,19 @@ export const dom = {
   todoCarouselDots: $('#todo-carousel-dots'),
   btnChooseTodoSize: $('#btn-choose-todo-size'),
 
+  // Memo carousel
+  memoCarouselViewport: $('#memo-carousel-viewport'),
+  memoCarouselPrev: $('#memo-carousel-prev'),
+  memoCarouselNext: $('#memo-carousel-next'),
+  memoCarouselDots: $('#memo-carousel-dots'),
+  btnChooseMemoSize: $('#btn-choose-memo-size'),
+
+  // Memo fullscreen
+  memoFullscreenOverlay: $('#memo-fullscreen-overlay'),
+  memoFullscreenBack: $('#memo-fullscreen-back'),
+  memoFullscreenTitle: $('#memo-fullscreen-title'),
+  memoFullscreenBody: $('#memo-fullscreen-body'),
+
   // To-Do compose sheet
   todoComposeOverlay: $('#todo-compose-overlay'),
   todoComposeHeading: $('#todo-compose-heading'),

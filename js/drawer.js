@@ -2,7 +2,7 @@
    MEMENTO DIARY — Widget Drawer & Size Carousel
    ═══════════════════════════════════════════════════════════ */
 
-import { state } from './state.js';
+import { state, memoWidgetSizes } from './state.js';
 import { dom, $, $$ } from './dom.js';
 import { showToast } from './utils.js';
 import { enterPlacementMode } from './widgets.js';
@@ -220,5 +220,78 @@ export function onChooseTodoSize() {
   closeDrawer();
   setTimeout(() => {
     enterPlacementMode(size, null, 'todo');
+  }, 250);
+}
+
+
+/* ── Memo Widget Flow ────────────────────────────────── */
+export function buildMemoSizeCarousel() {
+  const viewport = dom.memoCarouselViewport;
+  viewport.innerHTML = '';
+
+  memoWidgetSizes.forEach((size) => {
+    const card = document.createElement('div');
+    card.className = 'size-card';
+
+    const preview = document.createElement('div');
+    preview.className = 'size-preview memo-size-preview';
+    preview.style.gridTemplateColumns = `repeat(${size.cols}, 1fr)`;
+
+    const placeholder = document.createElement('div');
+    placeholder.className = 'size-preview-memo';
+    placeholder.style.gridColumn = '1 / -1';
+    placeholder.style.gridRow = '1 / -1';
+    placeholder.textContent = 'Memo';
+    preview.appendChild(placeholder);
+
+    card.innerHTML = `
+      <div class="size-label">${size.label}</div>
+      <div class="size-dims">${size.subtitle}</div>
+    `;
+    card.insertBefore(preview, card.firstChild.nextSibling);
+    viewport.appendChild(card);
+  });
+
+  buildMemoCarouselDots();
+  updateMemoCarousel();
+}
+
+function buildMemoCarouselDots() {
+  const dots = dom.memoCarouselDots;
+  dots.innerHTML = '';
+  memoWidgetSizes.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'carousel-dot';
+    if (i === state.memoCarouselIndex) dot.classList.add('active');
+    dot.addEventListener('click', () => {
+      state.memoCarouselIndex = i;
+      updateMemoCarousel();
+    });
+    dots.appendChild(dot);
+  });
+}
+
+export function navigateMemoCarousel(dir) {
+  const max = memoWidgetSizes.length - 1;
+  state.memoCarouselIndex = Math.max(0, Math.min(max, state.memoCarouselIndex + dir));
+  updateMemoCarousel();
+}
+
+function updateMemoCarousel() {
+  const cards = dom.memoCarouselViewport.querySelectorAll('.size-card');
+  cards.forEach((card) => {
+    card.style.transform = `translateX(-${state.memoCarouselIndex * 100}%)`;
+  });
+
+  dom.memoCarouselDots.querySelectorAll('.carousel-dot').forEach((dot, i) => {
+    dot.classList.toggle('active', i === state.memoCarouselIndex);
+  });
+}
+
+export function onChooseMemoSize() {
+  const size = memoWidgetSizes[state.memoCarouselIndex];
+  closeDrawer();
+  setTimeout(() => {
+    enterPlacementMode(size, null, 'memo');
   }, 250);
 }
