@@ -2,7 +2,7 @@
    MEMENTO DIARY — Main Entry Point & Event Orchestration
    ═══════════════════════════════════════════════════════════ */
 
-import { state } from './state.js';
+import { state, migrateMemoProfileFromEntries } from './state.js';
 import { dom, $, $$ } from './dom.js';
 import { renderCalendar } from './calendar.js';
 import { renderEntries, toggleSort, initContextMenu } from './entries.js';
@@ -17,6 +17,7 @@ import { bindMemoFullscreenEvents, closeMemoFullscreen } from './memo.js';
 
 /* ── Initialization ──────────────────────────────────── */
 function init() {
+  migrateMemoProfileFromEntries();
   renderCalendar();
   renderEntries();
   initContextMenu();
