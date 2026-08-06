@@ -300,6 +300,7 @@
       </header>
       <div class="memo-fullscreen-body" id="memo-fullscreen-body"></div>
     </div>
+
   </div>
 
 
@@ -410,6 +411,19 @@
 
 
   <!-- ═══════════════════════════════════════════════ -->
+  <!--  TO-DO DETAIL MODAL                             -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="todo-modal-overlay hidden" id="todo-modal-overlay">
+    <div class="todo-modal glass-panel" id="todo-modal" role="dialog" aria-modal="true" aria-labelledby="todo-modal-title">
+      <header class="todo-modal-header">
+        <h2 class="todo-modal-title" id="todo-modal-title">To-Do</h2>
+        <button type="button" class="todo-modal-close" id="todo-modal-close" aria-label="닫기">✕</button>
+      </header>
+      <div class="todo-modal-body" id="todo-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
   <!--  TO-DO COMPOSE SHEET (Bottom Sheet)             -->
   <!-- ═══════════════════════════════════════════════ -->
   <div class="todo-compose-overlay hidden" id="todo-compose-overlay">
@@ -444,11 +458,64 @@
   <!-- ═══════════════════════════════════════════════ -->
   <div class="todo-rename-overlay hidden" id="todo-rename-overlay">
     <div class="todo-rename-modal glass-panel" id="todo-rename-modal">
-      <h3 class="todo-rename-heading" id="todo-rename-heading">그룹 이름 수정</h3>
+      <h3 class="todo-rename-heading" id="todo-rename-heading">그룹명 변경</h3>
       <input type="text" id="todo-rename-input" class="todo-rename-input" maxlength="12" autocomplete="off" />
       <div class="todo-rename-actions">
         <button type="button" class="btn-secondary" id="todo-rename-cancel">취소</button>
-        <button type="button" class="btn-primary" id="todo-rename-submit" data-action="rename-group">저장</button>
+        <button type="button" class="btn-primary" id="todo-rename-submit" data-action="rename-group">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  APP INPUT / CONFIRM / CHOICE DIALOGS           -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="app-dialog-overlay hidden" id="app-input-overlay">
+    <div class="app-dialog-panel app-dialog-panel--input" id="app-input-panel" role="dialog" aria-modal="true">
+      <h3 class="app-dialog-title" id="app-input-title"></h3>
+      <input type="text" class="app-dialog-input" id="app-input-field" autocomplete="off" />
+      <p class="app-dialog-error" id="app-input-error" aria-live="polite"></p>
+      <div class="app-dialog-actions">
+        <button type="button" class="app-dialog-btn app-dialog-btn--secondary" id="app-input-cancel">취소</button>
+        <button type="button" class="app-dialog-btn app-dialog-btn--primary" id="app-input-confirm">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-dialog-overlay hidden" id="app-confirm-overlay">
+    <div class="app-dialog-panel app-dialog-panel--confirm" id="app-confirm-panel" role="dialog" aria-modal="true">
+      <h3 class="app-dialog-title" id="app-confirm-title"></h3>
+      <p class="app-dialog-message" id="app-confirm-message"></p>
+      <div class="app-dialog-actions">
+        <button type="button" class="app-dialog-btn app-dialog-btn--secondary" id="app-confirm-cancel">취소</button>
+        <button type="button" class="app-dialog-btn app-dialog-btn--primary" id="app-confirm-ok">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-dialog-overlay hidden" id="app-choice-overlay">
+    <div class="app-dialog-panel app-dialog-panel--choice" id="app-choice-panel" role="dialog" aria-modal="true">
+      <h3 class="app-dialog-title" id="app-choice-title"></h3>
+      <p class="app-dialog-message" id="app-choice-message"></p>
+      <div class="app-dialog-choice-list" id="app-choice-list"></div>
+      <div class="app-dialog-actions">
+        <button type="button" class="app-dialog-btn app-dialog-btn--secondary" id="app-choice-cancel">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-dialog-overlay hidden" id="app-color-overlay">
+    <div class="app-dialog-panel app-dialog-panel--color" id="app-color-panel" role="dialog" aria-modal="true">
+      <h3 class="app-dialog-title" id="app-color-title">색상 변경</h3>
+      <div class="app-color-palette" id="app-color-palette"></div>
+      <div class="app-color-custom-row">
+        <button type="button" class="app-color-custom-btn" id="app-color-custom-btn">직접 선택</button>
+        <input type="color" class="app-color-native-input hidden" id="app-color-native-input" value="#FF8FB1" />
+        <span class="app-color-preview" id="app-color-preview" aria-hidden="true"></span>
+      </div>
+      <div class="app-dialog-actions">
+        <button type="button" class="app-dialog-btn app-dialog-btn--secondary" id="app-color-cancel">취소</button>
+        <button type="button" class="app-dialog-btn app-dialog-btn--primary" id="app-color-apply">적용</button>
       </div>
     </div>
   </div>

@@ -5,6 +5,7 @@
 import { state, saveEntries, ensureMemoProfile, saveMemoProfile, DEFAULT_MEMO_PROFILE } from './state.js';
 import { dom } from './dom.js';
 import { showToast } from './utils.js';
+import { openConfirmDialog } from './dialogs.js';
 
 
 const editorDrafts = new Map();
@@ -2784,9 +2785,16 @@ function saveMemoFromDraft(w) {
 }
 
 
-function deleteMemo(w) {
+async function deleteMemo(w) {
   if (!selectedMemoId) return;
-  if (!confirm('이 메모를 삭제하시겠습니까?')) return;
+
+  const ok = await openConfirmDialog({
+    title: '메모 삭제',
+    message: '이 메모를 삭제하시겠습니까?',
+    confirmLabel: '삭제',
+    danger: true,
+  });
+  if (!ok) return;
 
   w.memos = w.memos.filter((m) => m.id !== selectedMemoId);
   editorDrafts.delete(w.id);

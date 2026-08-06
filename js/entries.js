@@ -5,6 +5,7 @@
 import { state, saveEntries } from './state.js';
 import { dom } from './dom.js';
 import { escapeHTML, showToast } from './utils.js';
+import { openConfirmDialog } from './dialogs.js';
 import { openEditor } from './editor.js';
 import { openEditModal } from './modals.js';
 
@@ -52,13 +53,19 @@ function closeContextMenu() {
   currentContextMenuEntry = null;
 }
 
-function deleteEntry(id) {
-  if (confirm("Are you sure you want to delete this entry?")) {
-    state.entries = state.entries.filter(e => e.id !== id);
-    saveEntries();
-    renderEntries();
-    showToast('Entry deleted');
-  }
+async function deleteEntry(id) {
+  const ok = await openConfirmDialog({
+    title: '일기 삭제',
+    message: '이 일기를 삭제할까요?',
+    confirmLabel: '삭제',
+    danger: true,
+  });
+  if (!ok) return;
+
+  state.entries = state.entries.filter((e) => e.id !== id);
+  saveEntries();
+  renderEntries();
+  showToast('일기가 삭제되었습니다');
 }
 
 

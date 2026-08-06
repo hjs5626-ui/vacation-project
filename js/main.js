@@ -11,7 +11,8 @@ import { openAddModal, closeAddModal, showModalStep, bindColorPicker, bindVisibi
 import { backToMain, saveDiary, changeFontSize } from './editor.js';
 import { cancelPlacement, rerenderPlacedWidgets } from './widgets.js';
 import { updateGridDimensionsFromContainer, buildLegoGrid } from './grid.js';
-import { bindTodoComposeSheetEvents, bindTodoGroupRenameEvents, bindTodoResizeSheetEvents } from './todo.js';
+import { bindTodoComposeSheetEvents, bindTodoResizeSheetEvents, bindTodoDetailEvents, closeTodoDetailPanel } from './todo.js';
+import { initAppDialogs } from './dialogs.js';
 import { bindMemoFullscreenEvents, closeMemoFullscreen } from './memo.js';
 
 
@@ -24,9 +25,10 @@ function init() {
   buildSizeCarousel();
   buildTodoSizeCarousel();
   buildMemoSizeCarousel();
+  initAppDialogs();
   bindTodoComposeSheetEvents();
-  bindTodoGroupRenameEvents();
   bindTodoResizeSheetEvents();
+  bindTodoDetailEvents();
   bindMemoFullscreenEvents();
   bindEvents();
 }
@@ -69,6 +71,7 @@ function bindEvents() {
   // Editor
   dom.editorBack.addEventListener('click', () => {
     closeMemoFullscreen();
+    closeTodoDetailPanel();
     backToMain();
   });
   dom.editorSave.addEventListener('click', saveDiary);

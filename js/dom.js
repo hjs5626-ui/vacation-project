@@ -101,6 +101,13 @@ export const dom = {
   memoFullscreenTitle: $('#memo-fullscreen-title'),
   memoFullscreenBody: $('#memo-fullscreen-body'),
 
+  // To-Do detail modal
+  todoModalOverlay: $('#todo-modal-overlay'),
+  todoModal: $('#todo-modal'),
+  todoModalClose: $('#todo-modal-close'),
+  todoModalTitle: $('#todo-modal-title'),
+  todoDetailBody: $('#todo-modal-body'),
+
   // To-Do compose sheet
   todoComposeOverlay: $('#todo-compose-overlay'),
   todoComposeHeading: $('#todo-compose-heading'),
@@ -110,6 +117,7 @@ export const dom = {
 
   // To-Do group rename modal
   todoRenameOverlay: $('#todo-rename-overlay'),
+  todoRenameHeading: $('#todo-rename-heading'),
   todoRenameInput: $('#todo-rename-input'),
   todoRenameCancel: $('#todo-rename-cancel'),
   todoRenameSubmit: $('#todo-rename-submit'),
@@ -119,7 +127,40 @@ export const dom = {
   todoResizeSizeList: $('#todo-resize-size-list'),
   todoResizeCancel: $('#todo-resize-cancel'),
 
-  // Confirm
+  // App dialogs (input / confirm / choice)
+  appInputOverlay: $('#app-input-overlay'),
+  appInputPanel: $('#app-input-panel'),
+  appInputTitle: $('#app-input-title'),
+  appInputField: $('#app-input-field'),
+  appInputError: $('#app-input-error'),
+  appInputCancel: $('#app-input-cancel'),
+  appInputConfirm: $('#app-input-confirm'),
+
+  appConfirmOverlay: $('#app-confirm-overlay'),
+  appConfirmPanel: $('#app-confirm-panel'),
+  appConfirmTitle: $('#app-confirm-title'),
+  appConfirmMessage: $('#app-confirm-message'),
+  appConfirmCancel: $('#app-confirm-cancel'),
+  appConfirmOk: $('#app-confirm-ok'),
+
+  appChoiceOverlay: $('#app-choice-overlay'),
+  appChoicePanel: $('#app-choice-panel'),
+  appChoiceTitle: $('#app-choice-title'),
+  appChoiceMessage: $('#app-choice-message'),
+  appChoiceList: $('#app-choice-list'),
+  appChoiceCancel: $('#app-choice-cancel'),
+
+  appColorOverlay: $('#app-color-overlay'),
+  appColorPanel: $('#app-color-panel'),
+  appColorTitle: $('#app-color-title'),
+  appColorPalette: $('#app-color-palette'),
+  appColorCustomBtn: $('#app-color-custom-btn'),
+  appColorNativeInput: $('#app-color-native-input'),
+  appColorPreview: $('#app-color-preview'),
+  appColorCancel: $('#app-color-cancel'),
+  appColorApply: $('#app-color-apply'),
+
+  // Confirm (image import)
   confirmOverlay: $('#confirm-overlay'),
   confirmImage: $('#confirm-image'),
   confirmYes: $('#confirm-yes'),
