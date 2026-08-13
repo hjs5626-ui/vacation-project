@@ -17,7 +17,6 @@ import {
 } from './state.js';
 import { dom } from './dom.js';
 import { showToast } from './utils.js';
-<<<<<<< HEAD
 import { collectMemoImageIdsFromHtml, deleteMemoImageBlob, applyMemoImageLayoutHints } from './memo-media.js';
 import {
   beginPhotoContinuationSheet,
@@ -67,9 +66,7 @@ import {
   setActiveEditorSheetIndex,
   syncCurrentDraftIntoSession,
 } from './memo-editor-session.js';
-=======
 import { openConfirmDialog } from './dialogs.js';
->>>>>>> origin/main
 
 
 const editorDrafts = new Map();
