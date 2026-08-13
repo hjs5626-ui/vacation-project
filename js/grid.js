@@ -152,6 +152,28 @@ export function freeCells(widgetId) {
 }
 
 
+export function highlightPlacementPreview(startRow, startCol, wCols, wRows, ignoreWidgetId = null) {
+  clearCellHighlights();
+
+  const row = Number(startRow);
+  const col = Number(startCol);
+  const cols = Number(wCols);
+  const rows = Number(wRows);
+  const canPlace = checkPlacement(row, col, cols, rows, ignoreWidgetId);
+
+  for (let r = row; r < row + rows && r < state.gridRows; r++) {
+    for (let c = col; c < col + cols && c < state.gridCols; c++) {
+      const cell = getCell(r, c);
+      if (cell) {
+        cell.classList.add(canPlace ? 'placement-hover' : 'placement-invalid');
+      }
+    }
+  }
+
+  return canPlace;
+}
+
+
 /* ── Cell Interaction (Hover & Click during placement) ── */
 
 function onCellHover(row, col) {

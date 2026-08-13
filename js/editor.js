@@ -4,11 +4,12 @@
 
 import { state, saveEntries, migrateMemoDataFromEntries } from './state.js';
 import { dom } from './dom.js';
-import { showToast, navigateTo } from './utils.js';
+import { showToast, navigateTo, normalizeHexColor } from './utils.js';
 import { updateGridDimensionsFromContainer, buildLegoGrid } from './grid.js';
 import { restoreWidget } from './widgets.js';
 import { renderEntries } from './entries.js';
 import { ensureMemoWidgetData } from './memo.js';
+import { ensureTodoWidgetData } from './todo.js';
 
 
 /* ── Open Editor ─────────────────────────────────────── */
@@ -57,11 +58,38 @@ function serializeWidget(w) {
   }
 
   if (w.type === 'todo') {
+    ensureTodoWidgetData(w);
     return {
       ...base,
-      groups: w.groups ?? [],
-      tasks: w.tasks ?? [],
       activeTab: w.activeTab ?? 'all',
+      todoSchemaVersion: w.todoSchemaVersion ?? 2,
+      groups: w.groups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        ...(g.color ? { color: normalizeHexColor(g.color, '#FF8FB1') } : {}),
+        todos: (g.todos ?? []).map((t) => ({
+          id: t.id,
+          text: t.text ?? t.title ?? '',
+          completed: Boolean(t.completed),
+          createdAt: t.createdAt,
+        })),
+        categories: g.categories.map((c) => ({
+          id: c.id,
+          name: c.name,
+          color: normalizeHexColor(c.color, '#FF8FB1'),
+          collapsed: Boolean(c.collapsed),
+          todos: c.todos.map((t) => ({
+            id: t.id,
+            text: t.text ?? t.title ?? '',
+            completed: Boolean(t.completed),
+            createdAt: t.createdAt,
+          })),
+        })),
+        itemOrder: (g.itemOrder ?? []).map((entry) => ({
+          type: entry.type,
+          id: entry.id,
+        })),
+      })),
     };
   }
 
@@ -96,6 +124,13 @@ export function saveDiary() {
   showToast('Diary saved!');
   dom.editorLabel.textContent = 'Saved ✓';
   setTimeout(() => { if (dom.editorLabel) dom.editorLabel.textContent = 'Editing'; }, 2000);
+}
+
+
+export function persistWidgetLayout() {
+  if (!state.currentDiary) return;
+  state.currentDiary.widgets = state.widgets.map(serializeWidget);
+  saveEntries();
 }
 
 

@@ -17,6 +17,7 @@ import {
 } from './state.js';
 import { dom } from './dom.js';
 import { showToast } from './utils.js';
+<<<<<<< HEAD
 import { collectMemoImageIdsFromHtml, deleteMemoImageBlob, applyMemoImageLayoutHints } from './memo-media.js';
 import {
   beginPhotoContinuationSheet,
@@ -66,6 +67,9 @@ import {
   setActiveEditorSheetIndex,
   syncCurrentDraftIntoSession,
 } from './memo-editor-session.js';
+=======
+import { openConfirmDialog } from './dialogs.js';
+>>>>>>> origin/main
 
 
 const editorDrafts = new Map();
@@ -8038,9 +8042,16 @@ function saveMemoFromDraft(w) {
 }
 
 
-function deleteMemo(w) {
+async function deleteMemo(w) {
   if (!selectedMemoId) return;
-  if (!confirm('이 메모를 삭제하시겠습니까?')) return;
+
+  const ok = await openConfirmDialog({
+    title: '메모 삭제',
+    message: '이 메모를 삭제하시겠습니까?',
+    confirmLabel: '삭제',
+    danger: true,
+  });
+  if (!ok) return;
 
   const memos = getSharedMemos();
   const index = memos.findIndex((m) => m.id === selectedMemoId);
