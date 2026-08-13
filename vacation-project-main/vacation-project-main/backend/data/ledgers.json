@@ -1,0 +1,75 @@
+{
+  "items": [
+    {
+      "id": "ms4ut0gjw3bpho",
+      "diaryId": "d1",
+      "widgetId": "w_0",
+      "date": "2026-07-29",
+      "content": "점심",
+      "category": "식비",
+      "price": 9000,
+      "createdAt": "2026-07-28T16:12:02.323Z",
+      "updatedAt": "2026-07-28T16:12:02.323Z"
+    },
+    {
+      "id": "ms4v6ldr78tmx7",
+      "diaryId": "ms4uwe7gzuke",
+      "widgetId": "w_1",
+      "date": "2026-07-28",
+      "content": "초밥집",
+      "category": "식비",
+      "price": 12000,
+      "createdAt": "2026-07-28T16:22:35.967Z",
+      "updatedAt": "2026-07-29T02:05:42.762Z",
+      "kind": "expense"
+    },
+    {
+      "id": "ms4v78gjaagsvp",
+      "diaryId": "ms4uwe7gzuke",
+      "widgetId": "w_1",
+      "date": "2026-07-28",
+      "content": "중식집",
+      "category": "식비",
+      "price": 20000,
+      "createdAt": "2026-07-28T16:23:05.875Z",
+      "updatedAt": "2026-07-28T16:49:19.377Z",
+      "kind": "expense"
+    },
+    {
+      "id": "ms5e3f5eoji9ot",
+      "diaryId": "ms4uwe7gzuke",
+      "widgetId": "w_1",
+      "date": "2026-07-29",
+      "content": "굿즈",
+      "category": "여가",
+      "price": 100000,
+      "kind": "expense",
+      "createdAt": "2026-07-29T01:12:00.626Z",
+      "updatedAt": "2026-07-29T01:12:14.208Z"
+    },
+    {
+      "id": "ms5e3t1cdvrlon",
+      "diaryId": "ms4uwe7gzuke",
+      "widgetId": "w_1",
+      "date": "2026-07-29",
+      "content": "기차(서울->대구)",
+      "category": "교통",
+      "price": 40000,
+      "kind": "expense",
+      "createdAt": "2026-07-29T01:12:18.624Z",
+      "updatedAt": "2026-07-29T01:12:40.240Z"
+    },
+    {
+      "id": "ms5e4dxo4qpmpx",
+      "diaryId": "ms4uwe7gzuke",
+      "widgetId": "w_1",
+      "date": "2026-07-29",
+      "content": "급여 (AI)",
+      "category": "월급",
+      "price": 625000,
+      "kind": "income",
+      "createdAt": "2026-07-29T01:12:45.708Z",
+      "updatedAt": "2026-07-29T01:13:11.690Z"
+    }
+  ]
+}
