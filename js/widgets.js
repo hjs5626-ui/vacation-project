@@ -345,14 +345,12 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
 
   if (type === 'memo') {
     if (state.movingWidget) {
-      widgetData.memos = state.movingWidget.memos ?? [];
       widgetData.profile = state.movingWidget.profile
         ? { ...state.movingWidget.profile }
         : undefined;
       widgetData.sortBy = state.movingWidget.sortBy;
-      widgetData.activeCategory = state.movingWidget.activeCategory;
-    } else {
-      widgetData.memos = [];
+      widgetData.previewMemoId = state.movingWidget.previewMemoId ?? '';
+      widgetData.previewPageId = state.movingWidget.previewPageId ?? '';
     }
     ensureMemoWidgetData(widgetData);
     initMemoSessionState(widgetData);

@@ -2,7 +2,7 @@
    MEMENTO DIARY — Editor Screen Logic
    ═══════════════════════════════════════════════════════════ */
 
-import { state, saveEntries } from './state.js';
+import { state, saveEntries, migrateMemoDataFromEntries } from './state.js';
 import { dom } from './dom.js';
 import { showToast, navigateTo, normalizeHexColor } from './utils.js';
 import { updateGridDimensionsFromContainer, buildLegoGrid } from './grid.js';
@@ -14,6 +14,7 @@ import { ensureTodoWidgetData } from './todo.js';
 
 /* ── Open Editor ─────────────────────────────────────── */
 export function openEditor(entry) {
+  migrateMemoDataFromEntries();
   state.currentDiary = entry;
   state.occupiedCells = {};
   state.widgets = [];
@@ -103,38 +104,8 @@ function serializeWidget(w) {
         displayName: w.profile.displayName ?? 'Guest',
       },
       sortBy: w.sortBy,
-      activeCategory: w.activeCategory,
-      memos: w.memos.map((m) => ({
-        id: m.id,
-        title: m.title,
-        content: m.content,
-        category: m.category ?? 'default',
-        coverImage: m.coverImage ?? '',
-        pages: (m.pages ?? []).map((p) => ({
-          id: p.id,
-          templateId: p.templateId ?? 'basic',
-          category: p.category ?? '',
-          date: p.date ?? '',
-          title: p.title ?? '',
-          content: p.content ?? '',
-          isContinuation: Boolean(p.isContinuation),
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
-        })),
-        draftPages: (m.draftPages ?? []).map((p) => ({
-          id: p.id,
-          templateId: p.templateId ?? 'basic',
-          category: p.category ?? '',
-          date: p.date ?? '',
-          title: p.title ?? '',
-          content: p.content ?? '',
-          isContinuation: Boolean(p.isContinuation),
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
-        })),
-        createdAt: m.createdAt,
-        updatedAt: m.updatedAt,
-      })),
+      previewMemoId: w.previewMemoId ?? '',
+      previewPageId: w.previewPageId ?? '',
     };
   }
 
