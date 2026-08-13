@@ -8,7 +8,7 @@ title Memento - Local Server
 chcp 65001 >nul 2>&1
 
 REM 프로젝트 폴더
-set "PROJECT_DIR=C:\Users\hjs56\Downloads\vacation-project-main\vacation-project-main"
+set "PROJECT_DIR=%~dp0vacation-project-main"
 
 if not exist "%PROJECT_DIR%\index.html" goto missing
 
@@ -56,7 +56,7 @@ echo.
 echo [오류] index.html 을 찾을 수 없습니다.
 echo.
 echo  예상 경로:
-echo  C:\Users\hjs56\Downloads\vacation-project-main\vacation-project-main\index.html
+echo  %PROJECT_DIR%\index.html
 echo.
 goto end
 
