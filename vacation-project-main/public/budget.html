@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memento — Your Digital Diary</title>
+  <meta name="description" content="A beautiful grid-based diary app with LEGO-style widget placement, glassmorphism UI, and rich media support." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/budget.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  SCREEN 1 — MAIN PAGE                          -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div id="main-page" class="screen active">
+
+    <!-- TOP BAR (20%) -->
+    <header class="main-top" id="main-top">
+      <div class="app-brand">
+        <span class="brand-icon">◈</span>
+        <h1 class="app-name">Memento</h1>
+        <span class="brand-tag">diary</span>
+      </div>
+      <div class="user-profile" id="user-profile-btn">
+        <div class="profile-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 20c0-4 4-7 8-7s8 3 8 7"/>
+          </svg>
+        </div>
+        <span class="profile-name">Guest</span>
+        <span class="profile-chevron">▾</span>
+      </div>
+    </header>
+
+    <!-- MIDDLE BAR (10%) -->
+    <nav class="main-mid" id="main-mid">
+      <div class="mid-left">
+        <span class="entry-count" id="entry-count">0 entries</span>
+      </div>
+      <div class="mid-right">
+        <button class="btn-icon sort-btn" id="sort-btn" title="Sort entries">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M3 12h12M3 18h6"/>
+          </svg>
+        </button>
+        <button class="btn-add-main" id="add-btn" title="Add new entry">
+          <span>+</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- BOTTOM AREA (70%) -->
+    <section class="main-bottom" id="main-bottom">
+      <!-- Files/Diaries Grid (80%) -->
+      <div class="entries-grid-wrap" id="entries-grid-wrap">
+        <div class="entries-grid" id="entries-grid">
+          <!-- Empty state -->
+          <div class="empty-state" id="empty-state">
+            <div class="empty-icon">
+              <svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="10" y="10" width="60" height="60" rx="8"/>
+                <path d="M30 35h20M30 45h12"/>
+                <circle cx="55" cy="55" r="12" fill="rgba(139,92,246,0.2)" stroke="rgba(139,92,246,0.6)"/>
+                <path d="M55 49v12M49 55h12" stroke="rgba(139,92,246,0.8)" stroke-width="2"/>
+              </svg>
+            </div>
+            <h3>No entries yet</h3>
+            <p>Tap <strong>+</strong> to create your first file or diary</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar (20%) -->
+      <aside class="main-sidebar" id="main-sidebar">
+        <!-- Calendar Widget -->
+        <div class="sidebar-widget calendar-widget glass-panel" id="calendar-widget">
+          <div class="widget-header">
+            <button class="cal-nav" id="cal-prev">‹</button>
+            <span class="cal-month" id="cal-month"></span>
+            <button class="cal-nav" id="cal-next">›</button>
+          </div>
+          <div class="cal-weekdays" id="cal-weekdays"></div>
+          <div class="cal-days" id="cal-days"></div>
+        </div>
+        <!-- Map Widget -->
+        <div class="sidebar-widget map-widget glass-panel" id="map-widget">
+          <div class="widget-header"><span>Location</span></div>
+          <div class="map-placeholder">
+            <svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.5">
+              <circle cx="40" cy="30" r="10"/>
+              <path d="M40 40l-15 25h30z"/>
+              <circle cx="40" cy="30" r="3" fill="currentColor"/>
+            </svg>
+            <span>Map view</span>
+          </div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  ADD MODAL                                      -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="add-modal-overlay">
+    <div class="modal glass-panel" id="add-modal">
+      <button class="modal-close" id="add-modal-close">✕</button>
+
+      <!-- Step 1: Choose type -->
+      <div class="modal-step" id="modal-step-choose">
+        <h2 class="modal-title">Create New</h2>
+        <p class="modal-subtitle">Choose what you'd like to create</p>
+        <div class="type-cards">
+          <button class="type-card" id="choose-file">
+            <div class="type-card-icon file-icon-preview" style="--file-color: #8b5cf6;">
+              <svg viewBox="0 0 48 64" fill="var(--file-color)" opacity="0.85">
+                <path d="M0 8a8 8 0 018-8h20l20 20v36a8 8 0 01-8 8H8a8 8 0 01-8-8V8z"/>
+                <path d="M28 0l20 20H36a8 8 0 01-8-8V0z" fill="rgba(255,255,255,0.25)"/>
+              </svg>
+            </div>
+            <span class="type-card-label">File</span>
+            <span class="type-card-desc">Organize your diaries</span>
+          </button>
+          <button class="type-card" id="choose-diary">
+            <div class="type-card-icon diary-icon-preview">
+              <svg viewBox="0 0 48 56" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="4" y="0" width="40" height="56" rx="6" fill="rgba(236,72,153,0.2)"/>
+                <path d="M14 14h20M14 22h16M14 30h10" stroke="rgba(236,72,153,0.7)"/>
+                <circle cx="36" cy="44" r="8" fill="rgba(236,72,153,0.3)" stroke="rgba(236,72,153,0.6)"/>
+              </svg>
+            </div>
+            <span class="type-card-label">Diary</span>
+            <span class="type-card-desc">Write your thoughts</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: File creation -->
+      <div class="modal-step hidden" id="modal-step-file">
+        <button class="modal-back" id="file-back">← Back</button>
+        <h2 class="modal-title">New File</h2>
+        <div class="form-group">
+          <label>Color</label>
+          <div class="color-picker" id="file-color-picker">
+            <button class="color-swatch active" data-color="#8b5cf6" style="background:#8b5cf6"></button>
+            <button class="color-swatch" data-color="#ec4899" style="background:#ec4899"></button>
+            <button class="color-swatch" data-color="#06b6d4" style="background:#06b6d4"></button>
+            <button class="color-swatch" data-color="#10b981" style="background:#10b981"></button>
+            <button class="color-swatch" data-color="#f59e0b" style="background:#f59e0b"></button>
+            <button class="color-swatch" data-color="#ef4444" style="background:#ef4444"></button>
+            <button class="color-swatch" data-color="#6366f1" style="background:#6366f1"></button>
+            <button class="color-swatch" data-color="#f97316" style="background:#f97316"></button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="file-title-input">Title</label>
+          <input type="text" id="file-title-input" placeholder="My Collection" class="text-input" maxlength="40" />
+        </div>
+        <div class="form-group">
+          <label>Visibility</label>
+          <div class="visibility-options" id="file-visibility">
+            <button class="vis-btn active" data-vis="public">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M10 3a7 7 0 100 14 7 7 0 000-14zM1 10a9 9 0 1118 0 9 9 0 01-18 0z"/><circle cx="10" cy="10" r="3"/></svg>
+              Public
+            </button>
+            <button class="vis-btn" data-vis="private">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M10 2a5 5 0 00-5 5v2H4a1 1 0 00-1 1v7a1 1 0 001 1h12a1 1 0 001-1v-7a1 1 0 00-1-1h-1V7a5 5 0 00-5-5zm-3 5a3 3 0 116 0v2H7V7z"/></svg>
+              Private
+            </button>
+            <button class="vis-btn" data-vis="allowed">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM6 13a4 4 0 00-4 4v1h8v-1a4 4 0 00-4-4zM18 17v-1a4 4 0 00-4-4h-.5"/></svg>
+              Allowed
+            </button>
+          </div>
+          <input type="text" id="file-allowed-users" placeholder="user1, user2..." class="text-input hidden" />
+        </div>
+        <button class="btn-primary" id="file-create-btn">Create File</button>
+      </div>
+
+      <!-- Step 3: Diary creation -->
+      <div class="modal-step hidden" id="modal-step-diary">
+        <button class="modal-back" id="diary-back">← Back</button>
+        <h2 class="modal-title">New Diary</h2>
+        <div class="form-group">
+          <label>Color</label>
+          <div class="color-picker" id="diary-color-picker">
+            <button class="color-swatch active" data-color="#ec4899" style="background:#ec4899"></button>
+            <button class="color-swatch" data-color="#8b5cf6" style="background:#8b5cf6"></button>
+            <button class="color-swatch" data-color="#06b6d4" style="background:#06b6d4"></button>
+            <button class="color-swatch" data-color="#10b981" style="background:#10b981"></button>
+            <button class="color-swatch" data-color="#f59e0b" style="background:#f59e0b"></button>
+            <button class="color-swatch" data-color="#ef4444" style="background:#ef4444"></button>
+            <button class="color-swatch" data-color="#6366f1" style="background:#6366f1"></button>
+            <button class="color-swatch" data-color="#f97316" style="background:#f97316"></button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="diary-title-input">Title</label>
+          <input type="text" id="diary-title-input" placeholder="Today's thoughts..." class="text-input" maxlength="60" />
+        </div>
+        <div class="form-group">
+          <label>Visibility</label>
+          <div class="visibility-options" id="diary-visibility">
+            <button class="vis-btn active" data-vis="public">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M10 3a7 7 0 100 14 7 7 0 000-14zM1 10a9 9 0 1118 0 9 9 0 01-18 0z"/><circle cx="10" cy="10" r="3"/></svg>
+              Public
+            </button>
+            <button class="vis-btn" data-vis="private">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M10 2a5 5 0 00-5 5v2H4a1 1 0 00-1 1v7a1 1 0 001 1h12a1 1 0 001-1v-7a1 1 0 00-1-1h-1V7a5 5 0 00-5-5zm-3 5a3 3 0 116 0v2H7V7z"/></svg>
+              Private
+            </button>
+          </div>
+        </div>
+        <button class="btn-primary" id="diary-create-btn">Create & Open Editor</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  SCREEN 2 — EDITOR                             -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div id="editor-page" class="screen">
+
+    <!-- Editor Top Header (8%) -->
+    <header class="editor-header" id="editor-header">
+      <button class="btn-icon" id="editor-back" title="Back to main">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+      <div class="editor-header-center">
+        <span class="editor-label" id="editor-label">Editing</span>
+      </div>
+      <button class="btn-save" id="editor-save">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M3 3a2 2 0 012-2h8.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V17a2 2 0 01-2 2H5a2 2 0 01-2-2V3z"/><path d="M7 1v4a1 1 0 001 1h4a1 1 0 001-1V1" fill="rgba(255,255,255,0.3)"/><rect x="6" y="11" width="8" height="5" rx="1" fill="rgba(255,255,255,0.3)"/></svg>
+        Save
+      </button>
+    </header>
+
+    <!-- Title Section (10%) -->
+    <div class="editor-title-section" id="editor-title-section">
+      <input type="text" class="editor-title-input" id="editor-title" placeholder="Untitled" />
+      <div class="title-underline"></div>
+      <div class="title-controls">
+        <button class="font-size-btn" id="font-dec" title="Decrease font size">A−</button>
+        <span class="font-size-display" id="font-size-display">28px</span>
+        <button class="font-size-btn" id="font-inc" title="Increase font size">A+</button>
+      </div>
+    </div>
+
+    <!-- Workspace (82%) -->
+    <div class="editor-workspace" id="editor-workspace">
+      <!-- Map Widget (top-left) -->
+      <div class="editor-map-widget glass-panel" id="editor-map">
+        <div class="map-placeholder">
+          <svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.5">
+            <circle cx="40" cy="30" r="10"/>
+            <path d="M40 40l-15 25h30z"/>
+            <circle cx="40" cy="30" r="3" fill="currentColor"/>
+          </svg>
+          <span>Location</span>
+        </div>
+      </div>
+
+      <!-- LEGO Grid -->
+      <div class="lego-grid-container" id="lego-grid-container">
+        <div class="lego-grid" id="lego-grid">
+          <!-- Grid cells generated by JS -->
+        </div>
+      </div>
+
+      <!-- Placement Overlay (appears during widget placement) -->
+      <div class="placement-overlay hidden" id="placement-overlay">
+        <div class="placement-banner">
+          <span>Click a grid area to place your widget</span>
+          <button class="btn-cancel-placement" id="cancel-placement">Cancel</button>
+        </div>
+      </div>
+
+      <!-- FAB -->
+      <button class="fab" id="fab-add" title="Add widget">
+        <span>+</span>
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  SCREEN 3 — LEDGER DETAIL                      -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div id="ledger-page" class="screen">
+    <header class="ledger-detail-header">
+      <button class="btn-icon" id="ledger-detail-back" title="다이어리로 돌아가기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </button>
+      <div class="ledger-detail-header-center">
+        <h2 class="ledger-detail-heading">가계부</h2>
+        <p class="ledger-detail-sub" id="ledger-detail-sub">상세 보기</p>
+      </div>
+      <button class="btn-secondary ledger-clear-filters" id="ledger-clear-filters" type="button">필터 초기화</button>
+    </header>
+
+    <div class="ledger-detail-body">
+      <div class="ledger-detail-panel glass-panel">
+        <section class="ledger-month-summary" id="ledger-month-summary">
+          <div class="lms-header">
+            <button type="button" class="lms-nav" id="lms-prev" aria-label="이전 달">‹</button>
+            <h3 class="lms-title" id="lms-title">월별 요약</h3>
+            <button type="button" class="lms-nav" id="lms-next" aria-label="다음 달">›</button>
+          </div>
+          <div class="lms-stats">
+            <div class="lms-stat">
+              <span class="lms-stat-label">수입</span>
+              <span class="lms-stat-value income" id="lms-income">0원</span>
+            </div>
+            <div class="lms-stat">
+              <span class="lms-stat-label">지출</span>
+              <span class="lms-stat-value expense" id="lms-expense">0원</span>
+            </div>
+            <div class="lms-stat">
+              <span class="lms-stat-label">잔액</span>
+              <span class="lms-stat-value balance" id="lms-balance">0원</span>
+            </div>
+          </div>
+          <div class="lms-cats-title">카테고리별 지출</div>
+          <div class="lms-cats" id="lms-cats"></div>
+        </section>
+
+        <div class="ledger-detail-active-filters" id="ledger-active-filters"></div>
+
+        <div class="ledger-detail-headers">
+          <div class="ledger-h-spacer ledger-h-kind-spacer"></div>
+          <button type="button" class="ledger-h ledger-h-date ledger-filter-btn" data-filter="date">날짜 ▾</button>
+          <button type="button" class="ledger-h ledger-h-content ledger-filter-btn" data-filter="content">내용 ▾</button>
+          <button type="button" class="ledger-h ledger-h-category ledger-filter-btn" data-filter="category">카테고리 ▾</button>
+          <button type="button" class="ledger-h ledger-h-price ledger-filter-btn" data-filter="price">가격 ▾</button>
+          <div class="ledger-h-spacer"></div>
+        </div>
+
+        <div class="ledger-detail-rows" id="ledger-detail-rows"></div>
+
+        <button type="button" class="ledger-add-row" id="ledger-detail-add" title="항목 추가">
+          <span>+</span> 항목 추가
+        </button>
+
+        <div class="ledger-footer ledger-detail-footer ledger-detail-totals">
+          <div class="ld-total-row">
+            <span class="ledger-total-label">지출 <span class="ledger-detail-count" id="ledger-detail-count"></span></span>
+            <span class="ledger-total-value expense" id="ledger-detail-expense">0원</span>
+          </div>
+          <div class="ld-total-row">
+            <span class="ledger-total-label">수입</span>
+            <span class="ledger-total-value income" id="ledger-detail-income">0원</span>
+          </div>
+          <div class="ld-total-row balance-row">
+            <span class="ledger-total-label">잔액</span>
+            <span class="ledger-total-value" id="ledger-detail-total">0원</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter popovers -->
+    <div class="ledger-popover hidden" id="ledger-pop-date">
+      <div class="ledger-pop-title">기간 선택</div>
+      <label class="ledger-pop-field">
+        <span>시작</span>
+        <input type="date" id="ledger-date-from" />
+      </label>
+      <label class="ledger-pop-field">
+        <span>끝</span>
+        <input type="date" id="ledger-date-to" />
+      </label>
+      <div class="ledger-pop-actions">
+        <button type="button" class="btn-secondary" data-pop-clear="date">해제</button>
+        <button type="button" class="btn-primary" data-pop-apply="date">적용</button>
+      </div>
+    </div>
+
+    <div class="ledger-popover hidden" id="ledger-pop-content">
+      <div class="ledger-pop-title">내용 정렬</div>
+      <button type="button" class="ledger-pop-option" data-content-sort="asc">가나다순</button>
+      <button type="button" class="ledger-pop-option" data-content-sort="desc">가나다 역순</button>
+      <button type="button" class="ledger-pop-option muted" data-content-sort="">정렬 해제</button>
+    </div>
+
+    <div class="ledger-popover hidden" id="ledger-pop-category">
+      <div class="ledger-pop-title">카테고리 필터</div>
+      <div class="ledger-pop-cats" id="ledger-pop-cats"></div>
+      <div class="ledger-pop-actions">
+        <button type="button" class="btn-secondary" data-pop-clear="category">전체</button>
+        <button type="button" class="btn-primary" data-pop-apply="category">적용</button>
+      </div>
+    </div>
+
+    <div class="ledger-popover hidden" id="ledger-pop-price">
+      <div class="ledger-pop-title">가격 정렬</div>
+      <button type="button" class="ledger-pop-option" data-price-sort="desc">가격 높은순</button>
+      <button type="button" class="ledger-pop-option" data-price-sort="asc">가격 낮은순</button>
+      <button type="button" class="ledger-pop-option muted" data-price-sort="">정렬 해제</button>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  WIDGET DRAWER (Bottom Sheet)                   -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="drawer-overlay hidden" id="drawer-overlay">
+    <div class="drawer glass-panel" id="drawer">
+      <div class="drawer-handle"><div class="handle-bar"></div></div>
+
+      <!-- Sidebar tabs -->
+      <div class="drawer-body">
+        <div class="drawer-tabs" id="drawer-tabs">
+          <button class="drawer-tab active" data-tab="ledger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 3v18"/></svg>
+            <span>Ledger</span>
+          </button>
+          <button class="drawer-tab" data-tab="memo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h5"/></svg>
+            <span>Memo</span>
+          </button>
+          <button class="drawer-tab" data-tab="todo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
+            <span>To-Do</span>
+          </button>
+          <button class="drawer-tab" data-tab="gallery">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            <span>Gallery</span>
+          </button>
+        </div>
+
+        <!-- Content area -->
+        <div class="drawer-content" id="drawer-content">
+          <!-- Ledger Tab -->
+          <div class="tab-content hidden" id="tab-ledger">
+            <h3>Ledger Widgets</h3>
+            <p class="tab-desc">가계부 크기를 선택한 뒤 다이어리에 배치하세요</p>
+
+            <div class="size-carousel" id="ledger-size-carousel">
+              <button class="carousel-nav prev" id="ledger-carousel-prev">‹</button>
+              <div class="carousel-viewport" id="ledger-carousel-viewport">
+                <!-- Ledger size cards generated by JS -->
+              </div>
+              <button class="carousel-nav next" id="ledger-carousel-next">›</button>
+            </div>
+            <div class="carousel-dots" id="ledger-carousel-dots"></div>
+
+            <button class="btn-primary btn-choose-size" id="btn-choose-ledger">가계부 추가</button>
+          </div>
+          <!-- Memo Tab -->
+          <div class="tab-content hidden" id="tab-memo">
+            <h3>Memo Widgets</h3>
+            <p class="tab-placeholder">Text note widgets — coming soon</p>
+          </div>
+          <!-- To-Do Tab -->
+          <div class="tab-content hidden" id="tab-todo">
+            <h3>To-Do Widgets</h3>
+            <p class="tab-placeholder">Task list widgets — coming soon</p>
+          </div>
+          <!-- Gallery Tab -->
+          <div class="tab-content" id="tab-gallery">
+            <h3>Gallery Widget</h3>
+            <p class="tab-desc">Select a size for your image block</p>
+
+            <div class="size-carousel" id="size-carousel">
+              <button class="carousel-nav prev" id="carousel-prev">‹</button>
+              <div class="carousel-viewport" id="carousel-viewport">
+                <!-- Size cards generated by JS -->
+              </div>
+              <button class="carousel-nav next" id="carousel-next">›</button>
+            </div>
+            <div class="carousel-dots" id="carousel-dots"></div>
+
+            <button class="btn-primary btn-choose-size" id="btn-choose-size">Choose this size</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  IMAGE CONFIRM DIALOG                           -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="confirm-overlay hidden" id="confirm-overlay">
+    <div class="confirm-dialog glass-panel" id="confirm-dialog">
+      <div class="confirm-preview" id="confirm-preview">
+        <img id="confirm-image" src="" alt="Preview" />
+      </div>
+      <h3>Import this image?</h3>
+      <div class="confirm-actions">
+        <button class="btn-secondary" id="confirm-no">No</button>
+        <button class="btn-primary" id="confirm-yes">Yes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div class="toast hidden" id="toast">
+    <span id="toast-msg"></span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  CONTEXT MENU (Long Press / Right Click)        -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="context-menu hidden" id="context-menu">
+    <button id="ctx-edit">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Edit
+    </button>
+    <button id="ctx-delete" class="danger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      Delete
+    </button>
+  </div>
+
+  <!-- Hidden file input -->
+  <input type="file" id="file-input-hidden" accept="image/*" style="display:none" />
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
