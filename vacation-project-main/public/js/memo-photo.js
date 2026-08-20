@@ -124,7 +124,7 @@ function getAvailableEditorWidth(contentEditor) {
 function populateMeasureFromEditor(measure, contentEditor) {
   measure.replaceChildren();
   measure.innerHTML = contentEditor.innerHTML;
-  measure.querySelectorAll('.memo-photo-delete-toolbar').forEach((el) => el.remove());
+  measure.querySelectorAll('.memo-photo-delete-toolbar, .memo-photo-selection-actions').forEach((el) => el.remove());
   measure.querySelectorAll(`.${MEMO_PHOTO_SELECTED_CLASS}`).forEach((el) => {
     el.classList.remove(MEMO_PHOTO_SELECTED_CLASS);
   });
@@ -237,19 +237,21 @@ function applyPhotoBlockMeasureLayout(block, record, contentEditor) {
 
   const editorWidth = getAvailableEditorWidth(contentEditor);
   const blockWidth = editorWidth * MEMO_PHOTO_BLOCK_WIDTH_RATIO;
-  const displayHeight = (blockWidth * record.height) / record.width;
+  block.style.width = `${blockWidth}px`;
+  block.style.maxWidth = '100%';
   img.style.display = 'block';
   img.style.width = '100%';
-  img.style.height = `${displayHeight}px`;
+  img.style.height = 'auto';
+  img.style.aspectRatio = `${record.width} / ${record.height}`;
 }
 
-function measureHeightAfterPhotoInsertAtSelection(contentEditor, record) {
+function doesPhotoBlockFitAtSelection(contentEditor, record) {
   const measure = getOrCreateMeasureEditor(contentEditor);
   populateMeasureFromEditor(measure, contentEditor);
   const block = createPhotoBlockElement(record);
   applyPhotoBlockMeasureLayout(block, record, contentEditor);
   insertBlockInMeasureAtSelection(measure, block, contentEditor);
-  return measure.offsetHeight;
+  return measure.scrollHeight <= measure.clientHeight + 2;
 }
 
 function computePhotoInsertDecision(contentEditor, record) {
@@ -258,51 +260,14 @@ function computePhotoInsertDecision(contentEditor, record) {
     return { action: 'wait', reason: 'editor-not-ready' };
   }
 
-  // 빈 속지의 첫 사진 한 장만 무조건 삽입 허용
   if (isEditorEmptyForPhotoInsert(contentEditor)) {
     return { action: 'insert', reason: 'empty-sheet-first-photo' };
   }
 
-  const totalHeight = measureHeightAfterPhotoInsertAtSelection(contentEditor, record);
-  if (totalHeight <= maxHeight + 2) {
+  if (doesPhotoBlockFitAtSelection(contentEditor, record)) {
     return { action: 'insert' };
   }
   return { action: 'nextSheet' };
-}
-
-function trimMeasureAfterSelection(measure, path, offset) {
-  const targetNode = getNodeByPath(measure, path);
-  if (!targetNode) return;
-
-  if (targetNode.nodeType === Node.TEXT_NODE) {
-    targetNode.textContent = targetNode.textContent.slice(0, offset);
-  } else {
-    while (targetNode.childNodes.length > offset) {
-      targetNode.removeChild(targetNode.lastChild);
-    }
-  }
-
-  let node = targetNode;
-  while (node && node !== measure) {
-    let next = node.parentNode;
-    while (node.nextSibling) {
-      node.parentNode.removeChild(node.nextSibling);
-    }
-    node = next;
-  }
-}
-
-function measureContentHeightBeforeSelection(contentEditor) {
-  const measure = getOrCreateMeasureEditor(contentEditor);
-  populateMeasureFromEditor(measure, contentEditor);
-
-  if (!savedEditorSelection || !contentEditor.contains(savedEditorSelection.commonAncestorContainer)) {
-    return measure.offsetHeight;
-  }
-
-  const path = getNodePath(savedEditorSelection.startContainer, contentEditor);
-  trimMeasureAfterSelection(measure, path, savedEditorSelection.startOffset);
-  return measure.offsetHeight;
 }
 
 function finishPhotoProcessing(root, confirmBtn) {
@@ -328,11 +293,56 @@ async function cancelRemainingPendingPhotos() {
   pendingPhotoInsertIndex = pendingPhotoRecords.length;
 }
 
+function ensurePhotoBlockStructure(block) {
+  if (!block) return;
+  if (block.querySelector('.memo-editor-photo-block-media')) return;
+
+  const img = block.querySelector('img[data-memo-image-id]') ?? block.querySelector('img');
+  if (!img || !block.contains(img)) return;
+
+  const imgParent = img.parentElement;
+  if (!imgParent) return;
+
+  const isPhotoToolbar = (el) =>
+    el?.classList?.contains('memo-photo-selection-actions')
+    || el?.classList?.contains('memo-photo-delete-toolbar');
+
+  // After save/sanitize: wrapper div remains but lost memo-editor-photo-block-media class.
+  if (
+    imgParent.parentElement === block
+    && imgParent.tagName === 'DIV'
+    && !isPhotoToolbar(imgParent)
+  ) {
+    imgParent.classList.add('memo-editor-photo-block-media');
+    return;
+  }
+
+  // Legacy/plain blocks: img is a direct child of the photo block.
+  if (imgParent === block) {
+    const media = document.createElement('div');
+    media.className = 'memo-editor-photo-block-media';
+    block.insertBefore(media, img);
+    media.appendChild(img);
+    return;
+  }
+
+  // Deeper nesting (e.g. p > img): wrap within the img's immediate parent only.
+  if (img.parentElement === imgParent) {
+    const media = document.createElement('div');
+    media.className = 'memo-editor-photo-block-media';
+    imgParent.insertBefore(media, img);
+    media.appendChild(img);
+  }
+}
+
 function createPhotoBlockElement(record) {
   const block = document.createElement('div');
   block.className = MEMO_PHOTO_BLOCK_CLASS;
   block.contentEditable = 'false';
   block.dataset.memoImageId = record.id;
+
+  const media = document.createElement('div');
+  media.className = 'memo-editor-photo-block-media';
 
   const img = document.createElement('img');
   img.dataset.memoImageId = record.id;
@@ -341,7 +351,8 @@ function createPhotoBlockElement(record) {
   img.alt = '';
   img.draggable = false;
 
-  block.appendChild(img);
+  media.appendChild(img);
+  block.appendChild(media);
   return block;
 }
 
@@ -580,7 +591,7 @@ export function buildMemoPhotoFileInput() {
   input.type = 'file';
   input.accept = 'image/*';
   input.multiple = true;
-  input.className = 'memo-photo-file-input visually-hidden';
+  input.className = 'memo-photo-file-input hidden';
   input.tabIndex = -1;
   input.setAttribute('aria-hidden', 'true');
   return input;
@@ -771,7 +782,7 @@ export function serializeMemoEditorHtml(contentEditor, sanitizeMemoHtml) {
   clone.querySelectorAll(`.${MEMO_PHOTO_SELECTED_CLASS}`).forEach((el) => {
     el.classList.remove(MEMO_PHOTO_SELECTED_CLASS);
   });
-  clone.querySelector('.memo-photo-delete-toolbar')?.remove();
+  clone.querySelectorAll('.memo-photo-delete-toolbar, .memo-photo-selection-actions').forEach((el) => el.remove());
   return sanitizeMemoHtml(clone.innerHTML);
 }
 
@@ -796,8 +807,12 @@ export async function setupMemoReadModeImages(container) {
 }
 
 export function bindMemoPhotoEditorInteractions(w, shell, contentEditor, root, helpers) {
-  const { syncPageEditorDraftFromForm, collectAllMemoImageHtmlSources, deleteMemoImageIfUnreferenced } =
-    helpers;
+  const {
+    syncPageEditorDraftFromForm,
+    collectAllMemoImageHtmlSources,
+    deleteMemoImageIfUnreferenced,
+    coverPhoto,
+  } = helpers;
 
   if (!contentEditor || shell.dataset.memoPhotoBound) return;
   shell.dataset.memoPhotoBound = '1';
@@ -812,27 +827,79 @@ export function bindMemoPhotoEditorInteractions(w, shell, contentEditor, root, h
     deleteToolbar = null;
   };
 
+  const refreshCoverToolbar = (block) => {
+    if (!deleteToolbar || !block) return;
+
+    const imageId = block.dataset.memoImageId ?? '';
+    const coverBtn = deleteToolbar.querySelector('.memo-photo-cover-btn');
+    const clearBtn = deleteToolbar.querySelector('.memo-photo-cover-clear-btn');
+    const isCover = Boolean(imageId && coverPhoto?.getCoverPhotoId?.() === imageId);
+
+    if (coverBtn) coverBtn.hidden = isCover;
+    if (clearBtn) clearBtn.hidden = !isCover;
+  };
+
   const showDeleteToolbar = (block) => {
+    ensurePhotoBlockStructure(block);
     deleteToolbar?.remove();
     deleteToolbar = document.createElement('div');
-    deleteToolbar.className = 'memo-photo-delete-toolbar';
+    deleteToolbar.className = 'memo-photo-selection-actions memo-photo-delete-toolbar';
+    deleteToolbar.contentEditable = 'false';
+    deleteToolbar.setAttribute('contenteditable', 'false');
+    deleteToolbar.addEventListener('mousedown', (e) => e.preventDefault());
+
+    const coverBtn = document.createElement('button');
+    coverBtn.type = 'button';
+    coverBtn.className = 'memo-photo-cover-btn';
+    coverBtn.textContent = '대표사진 설정';
+
+    const clearCoverBtn = document.createElement('button');
+    clearCoverBtn.type = 'button';
+    clearCoverBtn.className = 'memo-photo-cover-clear-btn';
+    clearCoverBtn.textContent = '대표사진 해제';
+
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'memo-photo-delete-btn';
     btn.textContent = '사진 삭제';
-    deleteToolbar.appendChild(btn);
+
+    deleteToolbar.append(coverBtn, clearCoverBtn, btn);
     block.appendChild(deleteToolbar);
+
+    if (!coverPhoto) {
+      coverBtn.hidden = true;
+      clearCoverBtn.hidden = true;
+    }
+
+    refreshCoverToolbar(block);
+
+    coverBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const imageId = block.dataset.memoImageId;
+      if (!imageId) return;
+      coverPhoto?.setCoverPhoto?.(imageId);
+      refreshCoverToolbar(block);
+    });
+
+    clearCoverBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      coverPhoto?.clearCoverPhoto?.();
+      refreshCoverToolbar(block);
+    });
 
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const imageId = block.dataset.memoImageId;
+      if (imageId && coverPhoto?.getCoverPhotoId?.() === imageId) {
+        coverPhoto?.clearCoverPhoto?.();
+      }
       revokeMemoImageObjectUrls(block);
       block.remove();
       clearPhotoSelection();
       syncPageEditorDraftFromForm(w);
 
       if (imageId) {
-        const sources = collectAllMemoImageHtmlSources?.(w) ?? [];
+        const sources = collectAllMemoImageHtmlSources?.() ?? [];
         const stillUsed = sources.some((html) => collectMemoImageIdsFromHtml(html).has(imageId));
         if (!stillUsed) {
           await deleteMemoImageIfUnreferenced?.(imageId);

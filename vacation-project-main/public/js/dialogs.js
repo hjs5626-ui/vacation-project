@@ -336,6 +336,46 @@ export function isAppDialogOpen() {
 
 
 export function initAppDialogs() {
+  if (dom.appConfirmOverlay && !dom.appConfirmOverlay.dataset.bound) {
+    dom.appConfirmOverlay.dataset.bound = '1';
+
+    dom.appConfirmCancel?.addEventListener('click', (e) => {
+      stopEvent(e);
+      closeConfirmDialog(false);
+    });
+
+    dom.appConfirmOk?.addEventListener('click', (e) => {
+      stopEvent(e);
+      closeConfirmDialog(true);
+    });
+
+    dom.appConfirmOverlay.addEventListener('click', (e) => {
+      if (e.target === dom.appConfirmOverlay) closeConfirmDialog(false);
+    });
+
+    dom.appConfirmPanel?.addEventListener('click', stopEvent);
+  }
+
+  if (!document.documentElement.dataset.appDialogEscapeBound) {
+    document.documentElement.dataset.appDialogEscapeBound = '1';
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || !activeDialog) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (activeDialog === 'input') {
+        closeInputDialog(null);
+      } else if (activeDialog === 'confirm') {
+        closeConfirmDialog(false);
+      } else if (activeDialog === 'choice') {
+        closeChoiceDialog(null);
+      } else if (activeDialog === 'color') {
+        closeColorDialog(null);
+      }
+    }, true);
+  }
+
   if (!dom.appInputOverlay || dom.appInputOverlay.dataset.bound) return;
   dom.appInputOverlay.dataset.bound = '1';
 
@@ -364,39 +404,6 @@ export function initAppDialogs() {
       closeInputDialog(null);
     }
   });
-
-  dom.appConfirmCancel?.addEventListener('click', (e) => {
-    stopEvent(e);
-    closeConfirmDialog(false);
-  });
-
-  dom.appConfirmOk?.addEventListener('click', (e) => {
-    stopEvent(e);
-    closeConfirmDialog(true);
-  });
-
-  dom.appConfirmOverlay?.addEventListener('click', (e) => {
-    if (e.target === dom.appConfirmOverlay) closeConfirmDialog(false);
-  });
-
-  dom.appConfirmPanel?.addEventListener('click', stopEvent);
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || !activeDialog) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (activeDialog === 'input') {
-      closeInputDialog(null);
-    } else if (activeDialog === 'confirm') {
-      closeConfirmDialog(false);
-    } else if (activeDialog === 'choice') {
-      closeChoiceDialog(null);
-    } else if (activeDialog === 'color') {
-      closeColorDialog(null);
-    }
-  }, true);
 
   dom.appChoiceCancel?.addEventListener('click', (e) => {
     stopEvent(e);

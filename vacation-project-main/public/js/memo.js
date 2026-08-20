@@ -6,6 +6,36 @@ import { state, saveEntries, ensureMemoProfile, saveMemoProfile, DEFAULT_MEMO_PR
 import { dom } from './dom.js';
 import { showToast } from './utils.js';
 import { openConfirmDialog } from './dialogs.js';
+import {
+  MEMO_PHOTO_BLOCK_CLASS,
+  buildMemoPhotoFileInput,
+  openMemoPhotoPicker,
+  handleMemoPhotoFileInputChange,
+  bindMemoPhotoEditorInteractions,
+  setupMemoEditorImages,
+  setupMemoReadModeImages,
+  serializeMemoEditorHtml,
+  memoHtmlHasVisibleContent,
+  beginPhotoContinuationSheet,
+} from './memo-photo.js';
+import { collectMemoImageIdsFromHtml, deleteMemoImageBlob, loadMemoImageIntoElement } from './memo-media.js';
+import { applyPhotoMeasureHints } from './memo-sheet-overflow.js';
+import { reflowEditorSessionSheets } from './memo-session-reflow.js';
+import {
+  appendContinuationSheetAtEnd,
+  ensureEditorSessionFromDraft,
+  filterSavableSessionSheets,
+  getActiveEditorSheet,
+  getActiveEditorSheetIndex,
+  getEditorSession,
+  getEditorSessionSheetCount,
+  initEditorSessionWithSheet,
+  initEditorSessionWithSheets,
+  resetAllEditorSessions,
+  resetEditorSession,
+  setActiveEditorSheetIndex,
+  syncCurrentDraftIntoSession,
+} from './memo-editor-session.js';
 
 
 const editorDrafts = new Map();
@@ -44,7 +74,7 @@ const MEMO_BASIC_TEMPLATE_ID = 'basic';
 const TEMPLATE_CAROUSEL_PAGE_SIZE = 4;
 
 const TEXT_PAGE_TOOLBAR_ITEMS = [
-  { id: 'photo', icon: '📷', label: '사진', toast: '사진 첨부 기능은 준비 중입니다.' },
+  { id: 'photo', icon: '📷', label: '사진' },
   { id: 'align', icon: '≡', label: '정렬', toast: '텍스트 정렬 기능은 준비 중입니다.' },
   { id: 'map', icon: '📍', label: '지도', toast: '지도 불러오기 기능은 준비 중입니다.' },
   { id: 'ledger', icon: '₩', label: '가계부', toast: '가계부 불러오기 기능은 준비 중입니다.' },
@@ -56,14 +86,31 @@ const SHEET_TITLE_MAX_LENGTH = 50;
 const PAGE_OVERFLOW_TOAST = '한 페이지에 입력할 수 있는 분량을 초과했습니다.';
 const CONTINUE_SHEET_FILL_RATIO = 0.88;
 
-const MEMO_HTML_ALLOWED_TAGS = new Set(['div', 'p', 'br', 'strong', 'b', 'em', 'i', 'u']);
+const MEMO_HTML_ALLOWED_TAGS = new Set(['div', 'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'img']);
+const DEFAULT_MEMO_COVER_IMAGE = 'assets/memo-default-cover.png';
+
+const MEMO_CATEGORY_ALL = 'all';
+const MEMO_CATEGORY_NAME_MAX_LENGTH = 30;
+const MEMO_SORT_OPTIONS = [
+  { id: 'updatedAt-desc', label: '최신순' },
+  { id: 'updatedAt-asc', label: '오래된순' },
+  { id: 'title-asc', label: '이름순' },
+];
 
 /** Session-only — not persisted */
 let activeMemoWidgetId = null;
 let fullscreenViewMode = 'home';
 let selectedMemoId = null;
 let fabExpanded = false;
-let isCreateSetupMenuOpen = false;
+let isMemoNoteMenuOpen = false;
+let isMemoSortMenuOpen = false;
+let isMemoCategoryMenuOpen = false;
+let isMemoSearchOpen = false;
+let memoSearchQuery = '';
+let isMemoEditorCategoryPickerOpen = false;
+let isMemoCategoryAdding = false;
+let memoCategoryEditingId = null;
+let memoCategoryDraftName = '';
 let isTemplatePopupOpen = false;
 let selectedInsertPosition = 'after-current';
 let selectedTemplateId = null;
@@ -100,12 +147,14 @@ export function ensureMemoWidgetData(w) {
     };
   }
 
-  if (w.sortBy == null) w.sortBy = 'updatedAt';
-  if (w.activeCategory == null) w.activeCategory = 'all';
+  if (w.sortBy == null || w.sortBy === 'updatedAt') w.sortBy = 'updatedAt-desc';
+  if (w.activeCategory == null) w.activeCategory = MEMO_CATEGORY_ALL;
+  if (!Array.isArray(w.categories)) w.categories = [];
 
   w.memos.forEach((memo) => {
-    if (memo.category == null) memo.category = 'default';
+    if (memo.category == null) memo.category = '';
     if (memo.coverImage == null) memo.coverImage = '';
+    if (memo.coverImageId == null) memo.coverImageId = '';
     if (!Array.isArray(memo.pages)) memo.pages = [];
     if (!Array.isArray(memo.draftPages)) memo.draftPages = [];
     const normalizePageFields = (page) => {
@@ -127,12 +176,14 @@ export function initMemoSessionState(w) {
   createSetupSheetDrafts.delete(w.id);
   pageEditorDrafts.delete(w.id);
   pageEditorBaselines.delete(w.id);
+  resetEditorSession(w.id);
 }
 
 
 function resetPageEditorSessionState() {
   pageEditorDrafts.clear();
   pageEditorBaselines.clear();
+  resetAllEditorSessions();
   currentDiaryId = null;
   currentPageId = null;
 }
@@ -151,33 +202,39 @@ function resetFullscreenSession() {
   fullscreenViewMode = 'home';
   selectedMemoId = null;
   fabExpanded = false;
-  isCreateSetupMenuOpen = false;
+  isMemoNoteMenuOpen = false;
+  isMemoSortMenuOpen = false;
+  isMemoCategoryMenuOpen = false;
+  isMemoSearchOpen = false;
+  memoSearchQuery = '';
+  isMemoEditorCategoryPickerOpen = false;
+  resetMemoCategoryInlineUi();
   resetTemplatePopupSessionState();
   resetPageEditorSessionState();
 }
 
 
-function syncCreateSetupMenuUi() {
-  const bookmark = dom.memoFullscreenBody?.querySelector('.memo-create-setup-bookmark-toggle');
-  const menu = dom.memoFullscreenBody?.querySelector('.memo-create-setup-menu');
-  if (!bookmark || !menu) return;
+function syncMemoNoteMenuUi() {
+  const moreBtn = dom.memoFullscreenBody?.querySelector('.memo-note-more');
+  const menu = dom.memoFullscreenBody?.querySelector('.memo-note-menu');
+  if (!moreBtn || !menu) return;
 
-  bookmark.setAttribute('aria-expanded', isCreateSetupMenuOpen ? 'true' : 'false');
-  menu.hidden = !isCreateSetupMenuOpen;
-  menu.classList.toggle('memo-create-setup-menu--open', isCreateSetupMenuOpen);
+  moreBtn.setAttribute('aria-expanded', isMemoNoteMenuOpen ? 'true' : 'false');
+  menu.hidden = !isMemoNoteMenuOpen;
+  menu.classList.toggle('memo-note-menu--open', isMemoNoteMenuOpen);
 }
 
 
-function toggleCreateSetupMenu() {
-  isCreateSetupMenuOpen = !isCreateSetupMenuOpen;
-  syncCreateSetupMenuUi();
+function toggleMemoNoteMenu() {
+  isMemoNoteMenuOpen = !isMemoNoteMenuOpen;
+  syncMemoNoteMenuUi();
 }
 
 
-function closeCreateSetupMenu() {
-  if (!isCreateSetupMenuOpen) return;
-  isCreateSetupMenuOpen = false;
-  syncCreateSetupMenuUi();
+function closeMemoNoteMenu() {
+  if (!isMemoNoteMenuOpen) return;
+  isMemoNoteMenuOpen = false;
+  syncMemoNoteMenuUi();
 }
 
 
@@ -247,6 +304,27 @@ function sanitizeMemoHtml(html) {
 }
 
 
+function isMemoPhotoBlockElement(el) {
+  return (
+    el?.nodeType === Node.ELEMENT_NODE
+    && el.classList?.contains(MEMO_PHOTO_BLOCK_CLASS)
+    && el.hasAttribute('data-memo-image-id')
+  );
+}
+
+
+function isMemoPhotoImageElement(el) {
+  return el?.nodeType === Node.ELEMENT_NODE && el.tagName.toLowerCase() === 'img' && el.hasAttribute('data-memo-image-id');
+}
+
+
+function preserveMemoElementAttributes(el, allowedNames) {
+  [...el.attributes].forEach((attr) => {
+    if (!allowedNames.includes(attr.name)) el.removeAttribute(attr.name);
+  });
+}
+
+
 function sanitizeMemoHtmlNode(root) {
   const removeQueue = [];
 
@@ -262,6 +340,21 @@ function sanitizeMemoHtmlNode(root) {
       const tag = child.tagName.toLowerCase();
       if (tag === 'br') {
         [...child.attributes].forEach((attr) => child.removeAttribute(attr.name));
+        return;
+      }
+
+      if (isMemoPhotoBlockElement(child)) {
+        preserveMemoElementAttributes(child, ['class', 'data-memo-image-id']);
+        walk(child);
+        return;
+      }
+
+      if (isMemoPhotoImageElement(child)) {
+        preserveMemoElementAttributes(child, [
+          'data-memo-image-id',
+          'data-memo-image-width',
+          'data-memo-image-height',
+        ]);
         return;
       }
 
@@ -313,8 +406,8 @@ function setRichEditorContent(el, content) {
 
 function getRichEditorContentHtml(el) {
   if (!el) return '';
-  const html = sanitizeMemoHtml(el.innerHTML);
-  if (!memoContentToPlainText(html).trim()) return '';
+  const html = serializeMemoEditorHtml(el, sanitizeMemoHtml);
+  if (!memoHtmlHasVisibleContent(html)) return '';
   return html;
 }
 
@@ -685,7 +778,7 @@ function openMemoBinderForDiary(w, diaryId) {
   currentDiaryId = diaryId;
   resolveCurrentPageIdForDiary(memo);
   fabExpanded = false;
-  isCreateSetupMenuOpen = false;
+  isMemoNoteMenuOpen = false;
   resetTemplatePopupSessionState();
   pageEditorDrafts.delete(w.id);
   pageEditorBaselines.delete(w.id);
@@ -994,8 +1087,11 @@ function getPageCategoryLabel() {
 function clonePageDraft(draft) {
   return {
     pageId: draft.pageId ?? null,
+    editorSheetId: draft.editorSheetId ?? null,
+    draftId: draft.draftId ?? null,
     templateId: normalizeMemoTemplateId(draft.templateId),
     category: '',
+    memoCategoryId: draft.memoCategoryId ?? '',
     date: draft.date ?? '',
     title: draft.title ?? '',
     content: draft.content ?? '',
@@ -1003,6 +1099,100 @@ function clonePageDraft(draft) {
     isTemporary: draft.isTemporary ?? false,
     isContinuation: Boolean(draft.isContinuation),
   };
+}
+
+
+function getPageEditorMemoCategoryId(w, current) {
+  if (current?.memoCategoryId) return current.memoCategoryId;
+  const memo = getActiveCreateSetupMemo(w);
+  return normalizeMemoCategoryValue(memo?.category) ? memo.category : '';
+}
+
+
+function getPhotoContinuationHelpers() {
+  return {
+    syncPageEditorDraftFromForm,
+    pageEditorDrafts,
+    pageEditorBaselines,
+    clonePageDraft,
+    getPageEditorMemoCategoryId,
+    MEMO_BASIC_TEMPLATE_ID,
+  };
+}
+
+
+function buildEditorSessionNav() {
+  const nav = document.createElement('div');
+  nav.className = 'memo-editor-session-nav';
+  nav.hidden = true;
+
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'memo-editor-session-prev';
+  prevBtn.textContent = '‹';
+  prevBtn.setAttribute('aria-label', '이전 작성 속지');
+
+  const indicator = document.createElement('span');
+  indicator.className = 'memo-editor-session-indicator';
+
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'memo-editor-session-next';
+  nextBtn.textContent = '›';
+  nextBtn.setAttribute('aria-label', '다음 작성 속지');
+
+  nav.append(prevBtn, indicator, nextBtn);
+  return nav;
+}
+
+
+function syncEditorSessionNav(w, navEl) {
+  if (!navEl) return;
+
+  const draft = pageEditorDrafts.get(w.id);
+  if (draft) {
+    ensureEditorSessionFromDraft(w.id, draft, clonePageDraft, { memoId: currentDiaryId ?? null });
+  }
+
+  const count = getEditorSessionSheetCount(w.id);
+  if (count <= 1) {
+    navEl.hidden = true;
+    return;
+  }
+
+  navEl.hidden = false;
+  const idx = getActiveEditorSheetIndex(w.id);
+  const indicator = navEl.querySelector('.memo-editor-session-indicator');
+  const prevBtn = navEl.querySelector('.memo-editor-session-prev');
+  const nextBtn = navEl.querySelector('.memo-editor-session-next');
+
+  if (indicator) indicator.textContent = `${idx + 1} / ${count}`;
+  if (prevBtn) prevBtn.disabled = idx <= 0;
+  if (nextBtn) nextBtn.disabled = idx >= count - 1;
+}
+
+
+function navigateEditorSessionSheet(w, delta) {
+  syncPageEditorDraftFromForm(w);
+  const draft = pageEditorDrafts.get(w.id);
+  if (!draft) return;
+
+  ensureEditorSessionFromDraft(w.id, draft, clonePageDraft, { memoId: currentDiaryId ?? null });
+  syncCurrentDraftIntoSession(w.id, draft, clonePageDraft);
+
+  const session = getEditorSession(w.id);
+  if (!session?.sheets.length) return;
+
+  const newIndex = session.activeSheetIndex + delta;
+  if (newIndex < 0 || newIndex >= session.sheets.length) return;
+
+  setActiveEditorSheetIndex(w.id, newIndex);
+  const activeSheet = getActiveEditorSheet(w.id);
+  if (!activeSheet) return;
+
+  pageEditorDrafts.set(w.id, clonePageDraft(activeSheet));
+  pageEditorBaselines.set(w.id, clonePageDraft(activeSheet));
+  renderMemoFullscreen();
 }
 
 
@@ -1069,10 +1259,12 @@ function findMemoContainingPage(w, pageId) {
 
 
 function openTextPageEditorNew(w, sheetDraft) {
+  const parentMemo = getActiveCreateSetupMemo(w);
   const draft = {
     pageId: null,
     templateId: normalizeMemoTemplateId(sheetDraft.selectedTemplateId),
     category: '',
+    memoCategoryId: normalizeMemoCategoryValue(parentMemo?.category),
     date: getLocalDateInputValue(),
     title: '',
     content: '',
@@ -1082,6 +1274,8 @@ function openTextPageEditorNew(w, sheetDraft) {
   };
   pageEditorDrafts.set(w.id, draft);
   pageEditorBaselines.set(w.id, clonePageDraft(draft));
+  initEditorSessionWithSheet(w.id, draft, { memoId: currentDiaryId ?? null, sourceType: 'new' }, clonePageDraft);
+  isMemoNoteMenuOpen = false;
   fullscreenViewMode = 'pageEditor';
   renderMemoFullscreen();
 }
@@ -1095,19 +1289,41 @@ function openTextPageEditorForPage(w, pageId) {
   currentDiaryId = memo.id;
   currentPageId = pageId;
 
-  const draft = {
-    pageId: page.id,
-    templateId: normalizeMemoTemplateId(page.templateId),
+  const pages = memo.pages ?? [];
+  const pageIndex = Math.max(0, pages.findIndex((p) => p.id === pageId));
+
+  const sheetFromPage = (p) => ({
+    pageId: p.id,
+    templateId: normalizeMemoTemplateId(p.templateId),
     category: '',
-    date: isPageContinuation(page) ? '' : page.date || getLocalDateInputValue(),
-    title: isPageContinuation(page) ? '' : page.title === '제목 없음' ? '' : page.title ?? '',
-    content: page.content ?? '',
+    memoCategoryId: normalizeMemoCategoryValue(memo.category),
+    date: isPageContinuation(p) ? '' : p.date || getLocalDateInputValue(),
+    title: isPageContinuation(p) ? '' : p.title === '제목 없음' ? '' : p.title ?? '',
+    content: p.content ?? '',
     insertPosition: 'after-current',
     isTemporary: false,
-    isContinuation: isPageContinuation(page),
-  };
-  pageEditorDrafts.set(w.id, draft);
-  pageEditorBaselines.set(w.id, clonePageDraft(draft));
+    isContinuation: isPageContinuation(p),
+  });
+
+  if (pages.length > 1) {
+    const sheets = pages.map(sheetFromPage);
+    initEditorSessionWithSheets(
+      w.id,
+      sheets,
+      { memoId: memo.id, sourceType: 'page', activeSheetIndex: pageIndex },
+      clonePageDraft
+    );
+    const activeDraft = clonePageDraft(sheets[pageIndex]);
+    pageEditorDrafts.set(w.id, activeDraft);
+    pageEditorBaselines.set(w.id, clonePageDraft(activeDraft));
+  } else {
+    const draft = sheetFromPage(page);
+    pageEditorDrafts.set(w.id, draft);
+    pageEditorBaselines.set(w.id, clonePageDraft(draft));
+    initEditorSessionWithSheet(w.id, draft, { memoId: memo.id, sourceType: 'page' }, clonePageDraft);
+  }
+
+  isMemoNoteMenuOpen = false;
   fullscreenViewMode = 'pageEditor';
   renderMemoFullscreen();
 }
@@ -1151,6 +1367,13 @@ function syncPageEditorDraftFromForm(w) {
 function shouldShowPageEditorLeaveDialog(w) {
   syncPageEditorDraftFromForm(w);
   const draft = pageEditorDrafts.get(w.id);
+  if (draft) {
+    ensureEditorSessionFromDraft(w.id, draft, clonePageDraft, { memoId: currentDiaryId ?? null });
+    syncCurrentDraftIntoSession(w.id, draft, clonePageDraft);
+  }
+
+  if (getEditorSessionSheetCount(w.id) > 1) return true;
+
   if (!draft) return false;
 
   if ((draft.title || '').trim() || memoContentToPlainText(draft.content).trim()) {
@@ -1163,6 +1386,7 @@ function shouldShowPageEditorLeaveDialog(w) {
 
 function exitPageEditorToCreateSetup(w) {
   removePageEditorLeaveDialog();
+  resetEditorSession(w.id);
   pageEditorDrafts.delete(w.id);
   pageEditorBaselines.delete(w.id);
   fullscreenViewMode = 'createSetup';
@@ -1224,6 +1448,7 @@ function isPageEditorDirty(w) {
     draft.date !== baseline.date
     || draft.title !== baseline.title
     || draft.content !== baseline.content
+    || (draft.memoCategoryId ?? '') !== (baseline.memoCategoryId ?? '')
     || Boolean(draft.isContinuation) !== Boolean(baseline.isContinuation)
   );
 }
@@ -1264,7 +1489,7 @@ function saveTemporaryPageToDraftPages(w) {
       id: crypto.randomUUID(),
       title: isPageContinuation(draft) ? '제목 없음' : pageTitle,
       content: draft.content || '',
-      category: 'default',
+      category: normalizeMemoCategoryValue(draft.memoCategoryId) ? draft.memoCategoryId : '',
       coverImage: '',
       pages: [],
       draftPages: [],
@@ -1311,6 +1536,7 @@ function saveTemporaryPageToDraftPages(w) {
   pageEditorDrafts.delete(w.id);
   pageEditorBaselines.delete(w.id);
   fullscreenViewMode = 'createSetup';
+  syncMemoWidgetToEntry(w);
   saveEntries();
   renderMemoFullscreen();
   refreshMemoPreview(w.id);
@@ -1362,6 +1588,7 @@ function doesPageContentFitReadSheet(title, content, container, isContinuation =
   }
 
   renderMemoPageContentIntoElement(contentEl, content);
+  applyPhotoMeasureHints(measure, contentEl);
 
   return contentEl.scrollHeight <= contentEl.clientHeight + 2;
 }
@@ -1379,37 +1606,211 @@ function getPageEditorContentFillRatio(contentInput) {
 }
 
 
+function getEditorCaretBookmark(root) {
+  const sel = document.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+
+  const range = sel.getRangeAt(0);
+  if (!root.contains(range.commonAncestorContainer)) return null;
+
+  function nodePath(node) {
+    const path = [];
+    let current = node;
+    while (current && current !== root) {
+      const parent = current.parentNode;
+      if (!parent) return null;
+      path.unshift([...parent.childNodes].indexOf(current));
+      current = parent;
+    }
+    return path;
+  }
+
+  return {
+    startPath: nodePath(range.startContainer),
+    startOffset: range.startOffset,
+    endPath: nodePath(range.endContainer),
+    endOffset: range.endOffset,
+  };
+}
+
+
+function collapseEditorCaretToEnd(root) {
+  root.focus();
+  const sel = document.getSelection();
+  if (!sel) return;
+
+  const range = document.createRange();
+  range.selectNodeContents(root);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+
+function setEditorCaretBookmark(root, bookmark) {
+  root.focus();
+  const sel = document.getSelection();
+  if (!sel) return;
+
+  function nodeAt(path) {
+    if (!path) return null;
+    let node = root;
+    for (const index of path) {
+      if (index < 0 || !node.childNodes[index]) return null;
+      node = node.childNodes[index];
+    }
+    return node;
+  }
+
+  function setRangePos(range, path, offset, which) {
+    const node = nodeAt(path);
+    if (!node) return false;
+
+    const maxOffset =
+      node.nodeType === Node.TEXT_NODE
+        ? (node.textContent?.length ?? 0)
+        : node.childNodes.length;
+    const safeOffset = Math.max(0, Math.min(offset, maxOffset));
+
+    if (which === 'start') range.setStart(node, safeOffset);
+    else range.setEnd(node, safeOffset);
+    return true;
+  }
+
+  if (!bookmark?.startPath) {
+    collapseEditorCaretToEnd(root);
+    return;
+  }
+
+  const range = document.createRange();
+  if (!setRangePos(range, bookmark.startPath, bookmark.startOffset, 'start')) {
+    collapseEditorCaretToEnd(root);
+    return;
+  }
+
+  if (bookmark.endPath) {
+    if (!setRangePos(range, bookmark.endPath, bookmark.endOffset, 'end')) {
+      range.collapse(true);
+    }
+  } else {
+    range.collapse(true);
+  }
+
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+
+function bindEditorSessionNav(w, navEl) {
+  if (!navEl || navEl.dataset.bound) return;
+  navEl.dataset.bound = '1';
+
+  navEl.querySelector('.memo-editor-session-prev')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigateEditorSessionSheet(w, -1);
+  });
+  navEl.querySelector('.memo-editor-session-next')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigateEditorSessionSheet(w, 1);
+  });
+}
+
+
+function syncEditorUiAfterInput(w, contentEditor, continueBtn) {
+  syncPageEditorDraftFromForm(w);
+  if (!continueBtn) return;
+
+  const showContinue = getPageEditorContentFillRatio(contentEditor) >= CONTINUE_SHEET_FILL_RATIO;
+  continueBtn.hidden = !showContinue;
+  const continueRow = continueBtn.closest('.memo-text-page-continue-row');
+  if (continueRow) {
+    const sessionNav = continueRow.querySelector('.memo-editor-session-nav');
+    if (sessionNav) syncEditorSessionNav(w, sessionNav);
+    continueRow.hidden = !(showContinue || getEditorSessionSheetCount(w.id) > 1);
+  }
+}
+
+
+function applyEditorSessionReflow(w, contentEditor, { caretBookmark, continueBtn } = {}) {
+  const draft = pageEditorDrafts.get(w.id);
+  if (!draft || !contentEditor) return false;
+
+  ensureEditorSessionFromDraft(w.id, draft, clonePageDraft, { memoId: currentDiaryId ?? null });
+  syncCurrentDraftIntoSession(w.id, draft, clonePageDraft);
+
+  const session = getEditorSession(w.id);
+  if (!session) return false;
+
+  const activeBefore = session.activeSheetIndex;
+  const result = reflowEditorSessionSheets(session, contentEditor, { memoHtmlHasVisibleContent });
+
+  if (!result.changed) {
+    syncEditorUiAfterInput(w, contentEditor, continueBtn);
+    return false;
+  }
+
+  session.sheets = result.sheets;
+  session.activeSheetIndex = result.activeSheetIndex;
+
+  const activeSheet = session.sheets[session.activeSheetIndex];
+  if (!activeSheet) return false;
+
+  pageEditorDrafts.set(w.id, clonePageDraft(activeSheet));
+
+  if (session.activeSheetIndex === activeBefore) {
+    setRichEditorContent(contentEditor, activeSheet.content ?? '');
+    setupMemoEditorImages(contentEditor, { editable: true }).catch(() => {});
+    if (caretBookmark) {
+      setEditorCaretBookmark(contentEditor, caretBookmark);
+    }
+    syncEditorUiAfterInput(w, contentEditor, continueBtn);
+    return true;
+  }
+
+  renderMemoFullscreen();
+  requestAnimationFrame(() => {
+    const editor = dom.memoFullscreenBody?.querySelector('.memo-text-page-content');
+    if (editor && caretBookmark) {
+      setEditorCaretBookmark(editor, caretBookmark);
+    }
+  });
+  return true;
+}
+
+
 function bindPageEditorContentLimits(w, titleInput, contentEditor, continueBtn) {
-  let lastValidContent = getRichEditorContentHtml(contentEditor);
   let composing = false;
+  let isReflowing = false;
+  let pendingReflow = false;
 
-  const syncAndContinue = () => {
-    syncPageEditorDraftFromForm(w);
-    if (continueBtn) {
-      const showContinue = getPageEditorContentFillRatio(contentEditor) >= CONTINUE_SHEET_FILL_RATIO;
-      continueBtn.hidden = !showContinue;
-      const continueRow = continueBtn.closest('.memo-text-page-continue-row');
-      if (continueRow) continueRow.hidden = !showContinue;
+  const scheduleReflow = () => {
+    if (isReflowing) {
+      pendingReflow = true;
+      return;
+    }
+    isReflowing = true;
+    pendingReflow = false;
+
+    const caret = getEditorCaretBookmark(contentEditor);
+
+    try {
+      applyEditorSessionReflow(w, contentEditor, { caretBookmark: caret, continueBtn });
+    } finally {
+      isReflowing = false;
+      if (pendingReflow) {
+        requestAnimationFrame(scheduleReflow);
+      }
     }
   };
 
-  const rejectOverflow = () => {
-    contentEditor.innerHTML = lastValidContent;
-    showToast(PAGE_OVERFLOW_TOAST);
-    syncAndContinue();
-  };
-
-  const validateContent = () => {
+  const onEditorMutation = () => {
     if (composing) {
-      syncAndContinue();
+      syncPageEditorDraftFromForm(w);
       return;
     }
-    if (!isPageEditorContentWithinLimit(contentEditor)) {
-      rejectOverflow();
-      return;
-    }
-    lastValidContent = getRichEditorContentHtml(contentEditor);
-    syncAndContinue();
+    scheduleReflow();
   };
 
   contentEditor.addEventListener('compositionstart', () => {
@@ -1417,10 +1818,17 @@ function bindPageEditorContentLimits(w, titleInput, contentEditor, continueBtn) 
   });
   contentEditor.addEventListener('compositionend', () => {
     composing = false;
-    validateContent();
+    scheduleReflow();
   });
 
-  contentEditor.addEventListener('input', validateContent);
+  contentEditor.addEventListener('input', onEditorMutation);
+
+  contentEditor.addEventListener('keydown', (e) => {
+    if (composing) return;
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      requestAnimationFrame(scheduleReflow);
+    }
+  });
 
   contentEditor.addEventListener('paste', (e) => {
     e.preventDefault();
@@ -1433,7 +1841,7 @@ function bindPageEditorContentLimits(w, titleInput, contentEditor, continueBtn) 
     } else {
       contentEditor.innerHTML = `${contentEditor.innerHTML}${toInsert}`;
     }
-    validateContent();
+    scheduleReflow();
   });
 
   if (titleInput) {
@@ -1441,7 +1849,7 @@ function bindPageEditorContentLimits(w, titleInput, contentEditor, continueBtn) 
     titleInput.addEventListener('input', () => syncPageEditorDraftFromForm(w));
   }
 
-  syncAndContinue();
+  syncEditorUiAfterInput(w, contentEditor, continueBtn);
 }
 
 
@@ -1450,38 +1858,59 @@ function persistTextPageFromDraft(w) {
   const draft = pageEditorDrafts.get(w.id);
   if (!draft) return false;
 
-  const contentInput = dom.memoFullscreenBody?.querySelector('.memo-text-page-content');
-  if (contentInput && !isPageEditorContentWithinLimit(contentInput)) {
-    showToast(PAGE_OVERFLOW_TOAST);
-    return false;
+  ensureEditorSessionFromDraft(w.id, draft, clonePageDraft, { memoId: currentDiaryId ?? null });
+  syncCurrentDraftIntoSession(w.id, draft, clonePageDraft);
+
+  const session = getEditorSession(w.id);
+  let sheets = session?.sheets?.length
+    ? filterSavableSessionSheets(session.sheets, memoHtmlHasVisibleContent)
+    : [draft];
+
+  if (!sheets.length) {
+    sheets = session?.sheets?.length ? [session.sheets[0]] : [draft];
   }
 
   const container = dom.memoFullscreenBody;
-  const draftTitle = draft.title ?? '';
-  const draftContent = sanitizeMemoHtml(draft.content ?? '');
-  if (container && !doesPageContentFitReadSheet(draftTitle, draftContent, container, isPageContinuation(draft))) {
-    showToast(PAGE_OVERFLOW_TOAST);
-    return false;
+  const activeIdx = getActiveEditorSheetIndex(w.id);
+
+  for (let i = 0; i < sheets.length; i += 1) {
+    const sheet = sheets[i];
+    const isCont = i > 0 || isPageContinuation(sheet);
+    const draftTitle = sheet.title ?? '';
+    const draftContent = sanitizeMemoHtml(sheet.content ?? '');
+
+    if (i === activeIdx) {
+      const contentInput = container?.querySelector('.memo-text-page-content');
+      if (contentInput && !isPageEditorContentWithinLimit(contentInput)) {
+        showToast(PAGE_OVERFLOW_TOAST);
+        return false;
+      }
+    }
+
+    if (container && !doesPageContentFitReadSheet(draftTitle, draftContent, container, isCont)) {
+      showToast(PAGE_OVERFLOW_TOAST);
+      return false;
+    }
   }
 
   ensureMemoWidgetData(w);
   const now = new Date().toISOString();
-  const pageTitle = pageTitleForSave(draft);
-  const pageDate = pageDateForSave(draft);
-
+  const firstSheet = sheets[0];
   let memo = getActiveCreateSetupMemo(w);
 
-  if (draft.pageId) {
-    memo = findMemoContainingPage(w, draft.pageId);
+  if (firstSheet.pageId) {
+    memo = findMemoContainingPage(w, firstSheet.pageId);
   }
 
   if (!memo) {
+    const pageTitle = pageTitleForSave(firstSheet);
     memo = {
       id: crypto.randomUUID(),
-      title: isPageContinuation(draft) ? '제목 없음' : pageTitle,
-      content: draft.content || '',
-      category: 'default',
+      title: isPageContinuation(firstSheet) ? '제목 없음' : pageTitle,
+      content: firstSheet.content || '',
+      category: normalizeMemoCategoryValue(firstSheet.memoCategoryId) ? firstSheet.memoCategoryId : '',
       coverImage: '',
+      coverImageId: '',
       pages: [],
       draftPages: [],
       createdAt: now,
@@ -1493,54 +1922,62 @@ function persistTextPageFromDraft(w) {
 
   ensureMemoDraftPages(memo);
 
-  let savedPageId = draft.pageId;
+  const savedPageIds = new Set();
+  let anchorPageId = currentPageId;
 
-  if (draft.pageId) {
-    const page = memo.pages.find((p) => p.id === draft.pageId);
-    if (page) {
-      page.category = '';
-      page.date = pageDate;
-      page.title = pageTitle;
-      page.isContinuation = isPageContinuation(draft);
-      page.content = sanitizeMemoHtml(draft.content ?? '');
-      page.templateId = normalizeMemoTemplateId(draft.templateId ?? page.templateId);
-      page.updatedAt = now;
-      currentPageId = page.id;
-      savedPageId = page.id;
+  for (let i = 0; i < sheets.length; i += 1) {
+    const sheet = sheets[i];
+    const pageTitle = pageTitleForSave(sheet);
+    const pageDate = pageDateForSave(sheet);
+    const isCont = i > 0 || isPageContinuation(sheet);
+
+    if (sheet.pageId) {
+      const page = memo.pages.find((p) => p.id === sheet.pageId);
+      if (page) {
+        page.category = '';
+        page.date = pageDate;
+        page.title = pageTitle;
+        page.isContinuation = isCont;
+        page.content = sanitizeMemoHtml(sheet.content ?? '');
+        page.templateId = normalizeMemoTemplateId(sheet.templateId ?? page.templateId);
+        page.updatedAt = now;
+        anchorPageId = page.id;
+        currentPageId = page.id;
+        savedPageIds.add(page.id);
+      }
+    } else {
+      const newPage = {
+        id: crypto.randomUUID(),
+        templateId: normalizeMemoTemplateId(sheet.templateId),
+        category: '',
+        date: pageDate,
+        title: pageTitle,
+        isContinuation: isCont,
+        content: sanitizeMemoHtml(sheet.content ?? ''),
+        createdAt: now,
+        updatedAt: now,
+      };
+      const insertPos = i === 0 ? (sheet.insertPosition ?? 'after-current') : 'after-current';
+      memo.pages = insertPageByPosition(memo.pages, newPage, insertPos, anchorPageId);
+      anchorPageId = newPage.id;
+      currentPageId = newPage.id;
+      savedPageIds.add(newPage.id);
     }
-  } else {
-    const newPage = {
-      id: crypto.randomUUID(),
-      templateId: normalizeMemoTemplateId(draft.templateId),
-      category: '',
-      date: pageDate,
-      title: pageTitle,
-      isContinuation: isPageContinuation(draft),
-      content: sanitizeMemoHtml(draft.content ?? ''),
-      createdAt: now,
-      updatedAt: now,
-    };
-    memo.pages = insertPageByPosition(
-      memo.pages,
-      newPage,
-      draft.insertPosition ?? 'after-current',
-      currentPageId
-    );
-    currentPageId = newPage.id;
-    savedPageId = newPage.id;
   }
 
-  if (savedPageId) {
-    memo.draftPages = memo.draftPages.filter((p) => p.id !== savedPageId);
+  if (savedPageIds.size) {
+    memo.draftPages = memo.draftPages.filter((p) => !savedPageIds.has(p.id));
   }
 
-  if (!isPageContinuation(draft)) {
-    memo.title = pageTitle;
+  if (!isPageContinuation(firstSheet)) {
+    memo.title = pageTitleForSave(firstSheet);
   }
-  memo.content = sanitizeMemoHtml(draft.content ?? '');
+  memo.category = normalizeMemoCategoryValue(firstSheet.memoCategoryId) ? firstSheet.memoCategoryId : '';
+  memo.content = sanitizeMemoHtml(sheets[sheets.length - 1].content ?? '');
   memo.updatedAt = now;
   currentDiaryId = memo.id;
 
+  syncMemoWidgetToEntry(w);
   saveEntries();
   refreshMemoPreview(w.id);
   return true;
@@ -1548,25 +1985,37 @@ function persistTextPageFromDraft(w) {
 
 
 function continueWritingOnNextSheet(w) {
-  if (!persistTextPageFromDraft(w)) return;
+  syncPageEditorDraftFromForm(w);
+  const draft = pageEditorDrafts.get(w.id);
+  if (!draft) return;
 
-  const memo = getActiveCreateSetupMemo(w);
-  const page = memo?.pages.find((p) => p.id === currentPageId);
+  ensureEditorSessionFromDraft(w.id, draft, clonePageDraft, { memoId: currentDiaryId ?? null });
+  syncCurrentDraftIntoSession(w.id, draft, clonePageDraft);
 
-  const draft = {
-    pageId: null,
+  const container = dom.memoFullscreenBody;
+  const contentInput = container?.querySelector('.memo-text-page-content');
+  if (contentInput && !isPageEditorContentWithinLimit(contentInput)) {
+    showToast(PAGE_OVERFLOW_TOAST);
+    return;
+  }
+
+  const draftTitle = draft.title ?? '';
+  const draftContent = sanitizeMemoHtml(draft.content ?? '');
+  if (container && !doesPageContentFitReadSheet(draftTitle, draftContent, container, isPageContinuation(draft))) {
+    showToast(PAGE_OVERFLOW_TOAST);
+    return;
+  }
+
+  const newSheet = appendContinuationSheetAtEnd(w.id, {
+    initialContent: '',
     templateId: MEMO_BASIC_TEMPLATE_ID,
-    category: page?.category ?? '',
-    date: '',
-    title: '',
-    content: '',
-    insertPosition: 'after-current',
-    isTemporary: false,
-    isContinuation: true,
-  };
-  pageEditorDrafts.set(w.id, draft);
-  pageEditorBaselines.set(w.id, clonePageDraft(draft));
-  fullscreenViewMode = 'pageEditor';
+    memoCategoryId: getPageEditorMemoCategoryId(w, draft),
+    insertPosition: draft.insertPosition ?? 'after-current',
+  });
+  if (!newSheet) return;
+
+  pageEditorDrafts.set(w.id, clonePageDraft(newSheet));
+  pageEditorBaselines.set(w.id, clonePageDraft(newSheet));
   renderMemoFullscreen();
 }
 
@@ -1574,6 +2023,7 @@ function continueWritingOnNextSheet(w) {
 function saveTextPageFromDraft(w) {
   if (!persistTextPageFromDraft(w)) return;
 
+  resetEditorSession(w.id);
   pageEditorDrafts.delete(w.id);
   pageEditorBaselines.delete(w.id);
   fullscreenViewMode = 'createSetup';
@@ -1631,17 +2081,22 @@ function renderTextPageEditor(container, w) {
   backBtn.className = 'memo-text-page-back';
   backBtn.textContent = '←';
 
+  const categoryAnchor = document.createElement('div');
+  categoryAnchor.className = 'memo-text-page-category-anchor';
+
   const categoryBtn = document.createElement('button');
   categoryBtn.type = 'button';
   categoryBtn.className = 'memo-text-page-category-btn';
   categoryBtn.textContent = '카테고리 없음';
+
+  categoryAnchor.append(categoryBtn, buildMemoEditorCategoryPicker(w));
 
   const saveBtn = document.createElement('button');
   saveBtn.type = 'button';
   saveBtn.className = 'memo-text-page-save';
   saveBtn.textContent = '저장';
 
-  header.append(backBtn, categoryBtn, saveBtn);
+  header.append(backBtn, categoryAnchor, saveBtn);
 
   const body = document.createElement('div');
   body.className = 'memo-text-page-body memo-text-page-body--sheet';
@@ -1703,25 +2158,260 @@ function renderTextPageEditor(container, w) {
   continueRow.className = 'memo-text-page-continue-row';
   continueRow.hidden = true;
 
+  const sessionNav = buildEditorSessionNav();
+  syncEditorSessionNav(w, sessionNav);
+  bindEditorSessionNav(w, sessionNav);
+
   const continueBtn = document.createElement('button');
   continueBtn.type = 'button';
   continueBtn.className = 'memo-text-page-continue';
   continueBtn.textContent = '다음 속지에 이어쓰기';
   continueBtn.hidden = true;
-  continueRow.appendChild(continueBtn);
+
+  continueRow.append(sessionNav, continueBtn);
+  continueRow.hidden = sessionNav.hidden && continueBtn.hidden;
 
   body.append(sheetSurface);
   shell.append(header, body, continueRow, buildTextPageToolbar());
   container.appendChild(shell);
 
+  sheetSurface.addEventListener('click', (e) => {
+    if (e.target.closest('.memo-text-page-content')) return;
+    if (e.target.closest('input, button, textarea, select, label')) return;
+    contentEditor.focus();
+  });
+
   ensurePageEditorMeasureRoot(container);
   bindPageEditorContentLimits(w, isContinuation ? null : titleInput, contentEditor, continueBtn);
+
+  let photoFileInput = shell.querySelector('.memo-photo-file-input');
+  if (!photoFileInput) {
+    photoFileInput = buildMemoPhotoFileInput();
+    shell.appendChild(photoFileInput);
+  }
+
+  photoFileInput.onchange = () => {
+    handleMemoPhotoFileInputChange(photoFileInput, contentEditor, container, {
+      showToast,
+      syncDraft: () => syncPageEditorDraftFromForm(w),
+      onContinuationNeeded: async () => {
+        beginPhotoContinuationSheet(w, getPhotoContinuationHelpers());
+        renderMemoFullscreen();
+      },
+      onComplete: () => {
+        const currentDraft = pageEditorDrafts.get(w.id);
+        if (currentDraft) {
+          pageEditorBaselines.set(w.id, clonePageDraft(currentDraft));
+        }
+        const editor = dom.memoFullscreenBody?.querySelector('.memo-text-page-content');
+        const continueBtn = dom.memoFullscreenBody?.querySelector('.memo-text-page-continue');
+        if (editor) {
+          applyEditorSessionReflow(w, editor, { continueBtn });
+        }
+      },
+    });
+  };
+
+  setupMemoEditorImages(contentEditor, { editable: true }).catch(() => {});
+
+  bindMemoPhotoEditorInteractions(w, shell, contentEditor, container, {
+    syncPageEditorDraftFromForm: () => syncPageEditorDraftFromForm(w),
+    collectAllMemoImageHtmlSources: () => collectAllMemoImageHtmlSources(w),
+    deleteMemoImageIfUnreferenced: deleteMemoImageBlob,
+    coverPhoto: {
+      getCoverPhotoId: () => getMemoForCoverPhoto(w)?.coverImageId ?? '',
+      setCoverPhoto: (imageId) => setMemoCoverPhoto(w, imageId),
+      clearCoverPhoto: () => clearMemoCoverPhoto(w),
+    },
+  });
+
+  syncEditorCategoryBtn(w);
+  syncMemoEditorCategoryPickerUi();
+}
+
+
+function collectMemoImageIdsFromMemo(memo, w = null) {
+  const ids = new Set();
+  if (!memo) return ids;
+
+  (memo.pages ?? []).forEach((page) => {
+    collectMemoImageIdsFromHtml(page.content ?? '').forEach((id) => ids.add(id));
+  });
+  (memo.draftPages ?? []).forEach((page) => {
+    collectMemoImageIdsFromHtml(page.content ?? '').forEach((id) => ids.add(id));
+  });
+
+  if (w && currentDiaryId === memo.id) {
+    const editor = dom.memoFullscreenBody?.querySelector('.memo-text-page-content');
+    if (editor) {
+      collectMemoImageIdsFromHtml(serializeMemoEditorHtml(editor, sanitizeMemoHtml)).forEach((id) =>
+        ids.add(id)
+      );
+    }
+  }
+
+  return ids;
+}
+
+
+function resolveMemoCoverImageId(memo, w = null) {
+  const coverImageId = memo?.coverImageId?.trim();
+  if (!coverImageId) return '';
+  return collectMemoImageIdsFromMemo(memo, w).has(coverImageId) ? coverImageId : '';
+}
+
+
+function getMemoForCoverPhoto(w) {
+  ensureMemoWidgetData(w);
+  let memo = getActiveCreateSetupMemo(w);
+  if (memo) return memo;
+
+  if (currentDiaryId) {
+    memo = w.memos.find((m) => m.id === currentDiaryId) ?? null;
+  }
+  if (memo) return memo;
+
+  const draft = pageEditorDrafts.get(w.id);
+  if (draft?.pageId) {
+    return findMemoContainingPage(w, draft.pageId);
+  }
+  return null;
+}
+
+
+function setMemoCoverPhoto(w, imageId) {
+  const memo = getMemoForCoverPhoto(w);
+  if (!memo || !imageId) return;
+
+  memo.coverImageId = imageId;
+  syncMemoWidgetToEntry(w);
+  saveEntries();
+  refreshMemoPreview(w.id);
+  showToast('대표사진으로 설정되었습니다.');
+}
+
+
+function clearMemoCoverPhoto(w) {
+  const memo = getMemoForCoverPhoto(w);
+  if (!memo?.coverImageId) return;
+
+  memo.coverImageId = '';
+  syncMemoWidgetToEntry(w);
+  saveEntries();
+  refreshMemoPreview(w.id);
+  showToast('대표사진이 해제되었습니다.');
+}
+
+
+function collectAllMemoImageHtmlSources(w) {
+  const sources = [];
+  const editor = dom.memoFullscreenBody?.querySelector('.memo-text-page-content');
+  const activeIdx = getActiveEditorSheetIndex(w.id);
+  const session = getEditorSession(w.id);
+
+  if (session?.sheets?.length) {
+    session.sheets.forEach((sheet, idx) => {
+      if (idx === activeIdx && editor) {
+        sources.push(serializeMemoEditorHtml(editor, sanitizeMemoHtml));
+      } else {
+        sources.push(sheet.content ?? '');
+      }
+    });
+  } else if (editor) {
+    sources.push(serializeMemoEditorHtml(editor, sanitizeMemoHtml));
+  }
+
+  ensureMemoWidgetData(w);
+  w.memos.forEach((memo) => {
+    (memo.pages ?? []).forEach((page) => sources.push(page.content ?? ''));
+    (memo.draftPages ?? []).forEach((page) => sources.push(page.content ?? ''));
+  });
+  return sources;
+}
+
+
+function buildMemoHomeCardThumb(memo, w) {
+  const thumb = document.createElement('div');
+  thumb.className = 'memo-home-card-thumb';
+
+  const img = document.createElement('img');
+  img.alt = '';
+
+  const coverImageId = resolveMemoCoverImageId(memo, w);
+  if (coverImageId) {
+    img.dataset.memoImageId = coverImageId;
+  } else if (memo.coverImage) {
+    img.src = memo.coverImage;
+  } else {
+    img.src = DEFAULT_MEMO_COVER_IMAGE;
+  }
+
+  thumb.appendChild(img);
+  return thumb;
+}
+
+
+async function hydrateMemoHomeCardThumbs(container) {
+  if (!container) return;
+
+  const imgs = container.querySelectorAll('.memo-home-card-thumb img[data-memo-image-id]');
+  await Promise.all(
+    [...imgs].map(async (img) => {
+      const ok = await loadMemoImageIntoElement(img);
+      if (!ok) img.src = DEFAULT_MEMO_COVER_IMAGE;
+    })
+  );
+}
+
+
+function findMemoWidgetById(widgetId) {
+  if (!widgetId) return null;
+  const inCurrentGrid = state.widgets.find((x) => x.id === widgetId);
+  if (inCurrentGrid) return inCurrentGrid;
+
+  const pages = state.currentDiary?.pages;
+  if (!Array.isArray(pages)) return null;
+
+  for (const page of pages) {
+    if (!page?.widgets) continue;
+    const found = page.widgets.find((x) => x.id === widgetId);
+    if (found) return found;
+  }
+  return null;
+}
+
+
+function syncMemoWidgetToEntry(w) {
+  if (!w?.id || !state.currentDiary?.pages) return;
+
+  const pages = state.currentDiary.pages;
+  const spreadIndex = state.currentSpreadIndex ?? 0;
+
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    if (!page) continue;
+    if (!Array.isArray(page.widgets)) page.widgets = [];
+    const idx = page.widgets.findIndex((existing) => existing.id === w.id);
+    if (idx >= 0) {
+      page.widgets[idx] = w;
+      if (i === spreadIndex) state.widgets = page.widgets;
+      return;
+    }
+  }
+
+  const currentPage = pages[spreadIndex];
+  if (!currentPage) return;
+  if (!Array.isArray(currentPage.widgets)) currentPage.widgets = [];
+  if (!currentPage.widgets.some((existing) => existing.id === w.id)) {
+    currentPage.widgets.push(w);
+  }
+  state.widgets = currentPage.widgets;
 }
 
 
 function getActiveMemoWidget() {
   if (!activeMemoWidgetId) return null;
-  return state.widgets.find((x) => x.id === activeMemoWidgetId) ?? null;
+  return findMemoWidgetById(activeMemoWidgetId);
 }
 
 
@@ -1759,8 +2449,778 @@ function formatMemoDate(iso) {
 }
 
 
+function normalizeMemoCategoryValue(category) {
+  const value = (category ?? '').trim();
+  if (!value || value === 'default') return '';
+  return value;
+}
+
+
+function normalizeMemoSortBy(sortBy) {
+  if (sortBy === 'updatedAt' || sortBy == null) return 'updatedAt-desc';
+  return MEMO_SORT_OPTIONS.some((opt) => opt.id === sortBy) ? sortBy : 'updatedAt-desc';
+}
+
+
+function getMemoSortTimestamp(memo) {
+  const raw = memo?.updatedAt || memo?.createdAt;
+  const time = raw ? new Date(raw).getTime() : 0;
+  return Number.isNaN(time) ? 0 : time;
+}
+
+
+function findMemoCategory(w, categoryId) {
+  if (!categoryId) return null;
+  return (w.categories ?? []).find((cat) => cat.id === categoryId) ?? null;
+}
+
+
+function getMemoCategoryLabel(w, categoryId) {
+  const normalized = normalizeMemoCategoryValue(categoryId);
+  if (!normalized) return '카테고리 없음';
+  return findMemoCategory(w, normalized)?.name ?? '카테고리 없음';
+}
+
+
+function getMemoCategoryCounts(w) {
+  ensureMemoWidgetData(w);
+  const counts = { [MEMO_CATEGORY_ALL]: w.memos.length };
+  (w.categories ?? []).forEach((cat) => {
+    counts[cat.id] = 0;
+  });
+  w.memos.forEach((memo) => {
+    const categoryId = normalizeMemoCategoryValue(memo.category);
+    if (categoryId && counts[categoryId] != null) {
+      counts[categoryId] += 1;
+    }
+  });
+  return counts;
+}
+
+
+function getFilteredMemos(w) {
+  ensureMemoWidgetData(w);
+  const activeCategory = w.activeCategory ?? MEMO_CATEGORY_ALL;
+  if (activeCategory === MEMO_CATEGORY_ALL) return [...w.memos];
+  return w.memos.filter((memo) => normalizeMemoCategoryValue(memo.category) === activeCategory);
+}
+
+
+function normalizeMemoSearchQuery(query) {
+  return (query ?? '').trim().toLowerCase();
+}
+
+
+function memoHtmlToSearchText(html) {
+  return memoContentToPlainText(html).replace(/\s+/g, ' ').trim();
+}
+
+
+function getMemoSearchableText(memo) {
+  const parts = [];
+  if (memo.title) parts.push(memo.title);
+  if (memo.content) parts.push(memoHtmlToSearchText(memo.content));
+  (memo.pages ?? []).forEach((page) => {
+    if (page.title) parts.push(page.title);
+    if (page.content) parts.push(memoHtmlToSearchText(page.content));
+  });
+  return parts.join(' ').toLowerCase();
+}
+
+
+function memoMatchesSearch(memo, query) {
+  const normalized = normalizeMemoSearchQuery(query);
+  if (!normalized) return true;
+  return getMemoSearchableText(memo).includes(normalized);
+}
+
+
+function getSearchFilteredMemos(memos, query) {
+  const normalized = normalizeMemoSearchQuery(query);
+  if (!normalized) return [...memos];
+  return memos.filter((memo) => memoMatchesSearch(memo, normalized));
+}
+
+
+function sortMemoList(memos, sortBy) {
+  const sorted = [...memos];
+  const normalizedSort = normalizeMemoSortBy(sortBy);
+
+  if (normalizedSort === 'updatedAt-desc') {
+    sorted.sort((a, b) => getMemoSortTimestamp(b) - getMemoSortTimestamp(a));
+  } else if (normalizedSort === 'updatedAt-asc') {
+    sorted.sort((a, b) => getMemoSortTimestamp(a) - getMemoSortTimestamp(b));
+  } else if (normalizedSort === 'title-asc') {
+    sorted.sort((a, b) =>
+      (a.title || '제목 없음').localeCompare(b.title || '제목 없음', 'ko', { sensitivity: 'base' })
+    );
+  }
+
+  return sorted;
+}
+
+
+function getSortedAndFilteredMemos(w) {
+  let filtered = getFilteredMemos(w);
+  if (isMemoSearchOpen) {
+    filtered = getSearchFilteredMemos(filtered, memoSearchQuery);
+  }
+  return sortMemoList(filtered, w.sortBy);
+}
+
+
+function focusMemoHomeSearchInput() {
+  requestAnimationFrame(() => {
+    const input = dom.memoFullscreenBody?.querySelector('.memo-home-search-input');
+    if (!input) return;
+    input.focus();
+    const len = input.value.length;
+    input.setSelectionRange(len, len);
+  });
+}
+
+
+function syncMemoHomeSearchClearBtn() {
+  const clearBtn = dom.memoFullscreenBody?.querySelector('.memo-home-search-clear');
+  if (clearBtn) clearBtn.hidden = !memoSearchQuery.trim();
+}
+
+
+function openMemoSearch() {
+  isMemoSearchOpen = true;
+  memoSearchQuery = '';
+  fabExpanded = false;
+  closeMemoHomeMenus();
+  renderMemoFullscreen();
+  focusMemoHomeSearchInput();
+}
+
+
+function closeMemoSearch() {
+  if (!isMemoSearchOpen) return;
+  isMemoSearchOpen = false;
+  memoSearchQuery = '';
+  renderMemoFullscreen();
+}
+
+
+function clearMemoHomeSearch() {
+  memoSearchQuery = '';
+  const input = dom.memoFullscreenBody?.querySelector('.memo-home-search-input');
+  if (input) input.value = '';
+  syncMemoHomeSearchClearBtn();
+  refreshMemoHomeCardGrid(getActiveMemoWidget());
+  focusMemoHomeSearchInput();
+}
+
+
+function refreshMemoHomeCardGrid(w) {
+  if (!w) return;
+  const cardsSection = dom.memoFullscreenBody?.querySelector('.memo-home-cards');
+  if (!cardsSection) return;
+  renderMemoHomeCardsSection(cardsSection, w);
+}
+
+
+function buildMemoHomeSearchBar() {
+  const overlay = document.createElement('div');
+  overlay.className = 'memo-home-search-overlay';
+
+  const header = document.createElement('header');
+  header.className = 'memo-home-search-header';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'memo-home-search-close';
+  closeBtn.setAttribute('aria-label', '검색 닫기');
+  closeBtn.textContent = '←';
+
+  const field = document.createElement('div');
+  field.className = 'memo-home-search-field';
+
+  const icon = document.createElement('span');
+  icon.className = 'memo-home-search-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = '🔍';
+
+  const input = document.createElement('input');
+  input.type = 'search';
+  input.className = 'memo-home-search-input';
+  input.placeholder = '메모 검색';
+  input.autocomplete = 'off';
+  input.enterKeyHint = 'search';
+  input.value = memoSearchQuery;
+
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.className = 'memo-home-search-clear';
+  clearBtn.setAttribute('aria-label', '검색어 지우기');
+  clearBtn.textContent = '×';
+  clearBtn.hidden = !memoSearchQuery.trim();
+
+  field.append(icon, input, clearBtn);
+  header.append(closeBtn, field);
+  overlay.appendChild(header);
+  return overlay;
+}
+
+
+function renderMemoHomeCardsSection(cardsSection, w) {
+  ensureMemoWidgetData(w);
+  cardsSection.replaceChildren();
+
+  const trimmedQuery = memoSearchQuery.trim();
+
+  if (w.memos.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'memo-home-empty';
+    empty.textContent = isMemoSearchOpen ? '작성된 메모가 없습니다.' : '작성된 다이어리가 없습니다.';
+    cardsSection.appendChild(empty);
+    return;
+  }
+
+  const visibleMemos = getSortedAndFilteredMemos(w);
+
+  if (!visibleMemos.length) {
+    const empty = document.createElement('p');
+    empty.className = 'memo-home-empty';
+    if (isMemoSearchOpen && trimmedQuery) {
+      empty.append(`"${trimmedQuery}"`, '에 대한 검색 결과가 없습니다.');
+    } else {
+      empty.textContent = '해당 카테고리에 메모가 없습니다.';
+    }
+    cardsSection.appendChild(empty);
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'memo-home-card-grid';
+
+  visibleMemos.forEach((memo) => {
+    const card = document.createElement('article');
+    card.className = 'memo-home-card';
+    card.dataset.memoId = memo.id;
+
+    const thumb = buildMemoHomeCardThumb(memo, w);
+
+    const title = document.createElement('h3');
+    title.className = 'memo-home-card-title';
+    title.textContent = memo.title || '제목 없음';
+
+    const date = document.createElement('p');
+    date.className = 'memo-home-card-date';
+    date.textContent = formatMemoDate(memo.updatedAt);
+
+    card.append(thumb, title, date);
+    grid.appendChild(card);
+  });
+
+  cardsSection.appendChild(grid);
+  hydrateMemoHomeCardThumbs(cardsSection);
+}
+
+
+function resetMemoCategoryInlineUi() {
+  isMemoCategoryAdding = false;
+  memoCategoryEditingId = null;
+  memoCategoryDraftName = '';
+}
+
+
+function closeMemoHomeMenus() {
+  isMemoSortMenuOpen = false;
+  isMemoCategoryMenuOpen = false;
+  resetMemoCategoryInlineUi();
+  syncMemoHomeMenusUi();
+}
+
+
+function closeMemoEditorCategoryPicker() {
+  if (!isMemoEditorCategoryPickerOpen) return;
+  isMemoEditorCategoryPickerOpen = false;
+  syncMemoEditorCategoryPickerUi();
+}
+
+
+function syncMemoHomeMenusUi() {
+  const sortMenu = dom.memoFullscreenBody?.querySelector('.memo-home-sort-menu');
+  const categoryMenu = dom.memoFullscreenBody?.querySelector('.memo-home-category-menu');
+  const sortBtn = dom.memoFullscreenBody?.querySelector('.memo-home-sort');
+  const categoryBtn = dom.memoFullscreenBody?.querySelector('.memo-home-category');
+
+  if (sortMenu) {
+    sortMenu.hidden = !isMemoSortMenuOpen;
+    sortMenu.classList.toggle('memo-home-menu--open', isMemoSortMenuOpen);
+  }
+  if (categoryMenu) {
+    categoryMenu.hidden = !isMemoCategoryMenuOpen;
+    categoryMenu.classList.toggle('memo-home-menu--open', isMemoCategoryMenuOpen);
+  }
+  if (sortBtn) sortBtn.setAttribute('aria-expanded', isMemoSortMenuOpen ? 'true' : 'false');
+  if (categoryBtn) categoryBtn.setAttribute('aria-expanded', isMemoCategoryMenuOpen ? 'true' : 'false');
+
+  const w = getActiveMemoWidget();
+  if (!w) return;
+
+  const activeSort = normalizeMemoSortBy(w.sortBy);
+  dom.memoFullscreenBody?.querySelectorAll('.memo-home-sort-option').forEach((btn) => {
+    const isActive = btn.dataset.sortBy === activeSort;
+    btn.classList.toggle('is-active', isActive);
+    const check = btn.querySelector('.memo-sort-menu-check');
+    if (check) check.hidden = !isActive;
+  });
+
+  const activeCategory = w.activeCategory ?? MEMO_CATEGORY_ALL;
+  dom.memoFullscreenBody?.querySelectorAll('.memo-category-filter-button').forEach((btn) => {
+    btn.classList.toggle('is-active', btn.dataset.categoryId === activeCategory);
+  });
+}
+
+
+function focusMemoCategoryInlineInput(selector) {
+  requestAnimationFrame(() => {
+    const input = dom.memoFullscreenBody?.querySelector(selector);
+    if (!input) return;
+    input.focus();
+    input.select();
+  });
+}
+
+
+function attachMemoCategoryInlineInputHandlers(input, onConfirm, onCancel) {
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onConfirm();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+    }
+  });
+  input.addEventListener('click', (e) => e.stopPropagation());
+}
+
+
+function refreshMemoHomeCategoryMenu(w) {
+  const anchor = dom.memoFullscreenBody?.querySelector('.memo-home-category-anchor');
+  if (!anchor) return;
+
+  const oldMenu = anchor.querySelector('.memo-home-category-menu');
+  const newMenu = buildMemoCategoryMenu(w);
+  if (oldMenu) {
+    oldMenu.replaceWith(newMenu);
+  } else {
+    anchor.appendChild(newMenu);
+  }
+
+  isMemoCategoryMenuOpen = true;
+  syncMemoHomeMenusUi();
+
+  if (isMemoCategoryAdding) {
+    focusMemoCategoryInlineInput('.memo-category-inline-input--add');
+  } else if (memoCategoryEditingId) {
+    focusMemoCategoryInlineInput('.memo-category-inline-input--edit');
+  }
+}
+
+
+function buildMemoSortMenu(w) {
+  const menu = document.createElement('div');
+  menu.className = 'memo-home-sort-menu memo-home-menu';
+  menu.hidden = true;
+  menu.setAttribute('role', 'menu');
+
+  MEMO_SORT_OPTIONS.forEach((opt, index) => {
+    const item = document.createElement('div');
+    item.className = 'memo-sort-menu-item';
+    if (index === MEMO_SORT_OPTIONS.length - 1) {
+      item.classList.add('memo-sort-menu-item--last');
+    }
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'memo-home-sort-option memo-sort-menu-button';
+    btn.dataset.sortBy = opt.id;
+    btn.setAttribute('role', 'menuitem');
+
+    const label = document.createElement('span');
+    label.className = 'memo-sort-menu-label';
+    label.textContent = opt.label;
+
+    const check = document.createElement('span');
+    check.className = 'memo-sort-menu-check';
+    check.textContent = '✓';
+    check.setAttribute('aria-hidden', 'true');
+
+    const isActive = normalizeMemoSortBy(w.sortBy) === opt.id;
+    if (isActive) btn.classList.add('is-active');
+    check.hidden = !isActive;
+
+    btn.append(label, check);
+    item.appendChild(btn);
+    menu.appendChild(item);
+  });
+
+  return menu;
+}
+
+
+function buildMemoCategoryFilterButton(categoryId, name, count, isActive) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'memo-category-filter-button';
+  btn.dataset.categoryId = categoryId;
+
+  const label = document.createElement('span');
+  label.className = 'memo-category-name';
+  label.textContent = name;
+
+  const countEl = document.createElement('span');
+  countEl.className = 'memo-category-count';
+  countEl.textContent = String(count);
+
+  btn.append(label, countEl);
+  if (isActive) btn.classList.add('is-active');
+  return btn;
+}
+
+
+function buildMemoCategoryInlineAddRow(w) {
+  const item = document.createElement('div');
+  item.className = 'memo-category-menu-item memo-category-menu-item--inline';
+
+  const form = document.createElement('div');
+  form.className = 'memo-category-inline-form';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'memo-category-inline-input memo-category-inline-input--add';
+  input.placeholder = '카테고리 이름';
+  input.maxLength = MEMO_CATEGORY_NAME_MAX_LENGTH;
+  input.value = memoCategoryDraftName;
+
+  const actions = document.createElement('div');
+  actions.className = 'memo-category-inline-actions';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'memo-category-inline-cancel memo-category-add-cancel';
+  cancelBtn.textContent = '취소';
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.type = 'button';
+  confirmBtn.className = 'memo-category-inline-confirm memo-category-add-confirm';
+  confirmBtn.textContent = '추가';
+
+  actions.append(cancelBtn, confirmBtn);
+  form.append(input, actions);
+  item.appendChild(form);
+
+  attachMemoCategoryInlineInputHandlers(
+    input,
+    () => {
+      if (addMemoCategory(w, input.value)) {
+        resetMemoCategoryInlineUi();
+        refreshMemoHomeCategoryMenu(w);
+      }
+    },
+    () => {
+      resetMemoCategoryInlineUi();
+      refreshMemoHomeCategoryMenu(w);
+    }
+  );
+
+  return item;
+}
+
+
+function buildMemoCategoryInlineEditRow(w, cat) {
+  const item = document.createElement('div');
+  item.className = 'memo-category-menu-item memo-category-menu-item--inline';
+  item.dataset.categoryId = cat.id;
+
+  const form = document.createElement('div');
+  form.className = 'memo-category-inline-form';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'memo-category-inline-input memo-category-inline-input--edit';
+  input.placeholder = '카테고리 이름';
+  input.maxLength = MEMO_CATEGORY_NAME_MAX_LENGTH;
+  input.value = cat.name;
+
+  const actions = document.createElement('div');
+  actions.className = 'memo-category-inline-actions';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'memo-category-inline-cancel memo-category-edit-cancel';
+  cancelBtn.dataset.categoryId = cat.id;
+  cancelBtn.textContent = '취소';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'memo-category-inline-confirm memo-category-edit-save';
+  saveBtn.dataset.categoryId = cat.id;
+  saveBtn.textContent = '저장';
+
+  actions.append(cancelBtn, saveBtn);
+  form.append(input, actions);
+  item.appendChild(form);
+
+  attachMemoCategoryInlineInputHandlers(
+    input,
+    () => {
+      if (renameMemoCategory(w, cat.id, input.value)) {
+        resetMemoCategoryInlineUi();
+        refreshMemoHomeCategoryMenu(w);
+      }
+    },
+    () => {
+      resetMemoCategoryInlineUi();
+      refreshMemoHomeCategoryMenu(w);
+    }
+  );
+
+  return item;
+}
+
+
+function buildMemoCategoryMenu(w) {
+  ensureMemoWidgetData(w);
+  const counts = getMemoCategoryCounts(w);
+  const activeCategory = w.activeCategory ?? MEMO_CATEGORY_ALL;
+  const menu = document.createElement('div');
+  menu.className = 'memo-home-category-menu memo-home-menu memo-category-menu';
+  menu.hidden = true;
+  menu.setAttribute('role', 'menu');
+
+  const allItem = document.createElement('div');
+  allItem.className = 'memo-category-menu-item memo-category-menu-item--all';
+  allItem.appendChild(
+    buildMemoCategoryFilterButton(
+      MEMO_CATEGORY_ALL,
+      '전체',
+      counts[MEMO_CATEGORY_ALL] ?? 0,
+      activeCategory === MEMO_CATEGORY_ALL
+    )
+  );
+  menu.appendChild(allItem);
+
+  w.categories.forEach((cat, index) => {
+    const item = document.createElement('div');
+    item.className = 'memo-category-menu-item';
+    item.dataset.categoryId = cat.id;
+    if (index === w.categories.length - 1 && !isMemoCategoryAdding) {
+      item.classList.add('memo-category-menu-item--last-user');
+    }
+
+    if (memoCategoryEditingId === cat.id) {
+      menu.appendChild(buildMemoCategoryInlineEditRow(w, cat));
+      return;
+    }
+
+    const filterBtn = buildMemoCategoryFilterButton(
+      cat.id,
+      cat.name,
+      counts[cat.id] ?? 0,
+      activeCategory === cat.id
+    );
+
+    const actions = document.createElement('div');
+    actions.className = 'memo-category-row-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'memo-category-edit-button';
+    editBtn.dataset.categoryId = cat.id;
+    editBtn.textContent = '수정';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'memo-category-delete-button';
+    deleteBtn.dataset.categoryId = cat.id;
+    deleteBtn.textContent = '삭제';
+
+    actions.append(editBtn, deleteBtn);
+    item.append(filterBtn, actions);
+    menu.appendChild(item);
+  });
+
+  if (isMemoCategoryAdding) {
+    menu.appendChild(buildMemoCategoryInlineAddRow(w));
+  } else {
+    const addItem = document.createElement('div');
+    addItem.className = 'memo-category-menu-item memo-category-menu-item--add-trigger';
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'memo-home-category-add memo-category-menu-add-trigger';
+    addBtn.textContent = '+ 카테고리 추가';
+
+    addItem.appendChild(addBtn);
+    menu.appendChild(addItem);
+  }
+
+  return menu;
+}
+
+
+function syncMemoEditorCategoryPickerUi() {
+  const picker = dom.memoFullscreenBody?.querySelector('.memo-editor-category-picker');
+  const btn = dom.memoFullscreenBody?.querySelector('.memo-text-page-category-btn');
+  if (picker) {
+    picker.hidden = !isMemoEditorCategoryPickerOpen;
+    picker.classList.toggle('memo-editor-category-picker--open', isMemoEditorCategoryPickerOpen);
+  }
+  if (btn) btn.setAttribute('aria-expanded', isMemoEditorCategoryPickerOpen ? 'true' : 'false');
+
+  const w = getActiveMemoWidget();
+  const draft = w ? pageEditorDrafts.get(w.id) : null;
+  const selectedId = draft?.memoCategoryId ?? '';
+
+  dom.memoFullscreenBody?.querySelectorAll('.memo-editor-category-option').forEach((option) => {
+    option.classList.toggle('is-active', (option.dataset.categoryId ?? '') === selectedId);
+  });
+}
+
+
+function syncEditorCategoryBtn(w) {
+  const btn = dom.memoFullscreenBody?.querySelector('.memo-text-page-category-btn');
+  const draft = pageEditorDrafts.get(w.id);
+  if (!btn || !draft) return;
+  btn.textContent = getMemoCategoryLabel(w, draft.memoCategoryId);
+}
+
+
+function buildMemoEditorCategoryPicker(w) {
+  ensureMemoWidgetData(w);
+  const picker = document.createElement('div');
+  picker.className = 'memo-editor-category-picker';
+  picker.hidden = true;
+
+  const panel = document.createElement('div');
+  panel.className = 'memo-editor-category-picker-panel memo-home-menu';
+  panel.setAttribute('role', 'menu');
+
+  const noneItem = document.createElement('div');
+  noneItem.className = 'memo-editor-category-menu-item';
+  const noneBtn = document.createElement('button');
+  noneBtn.type = 'button';
+  noneBtn.className = 'memo-editor-category-option';
+  noneBtn.dataset.categoryId = '';
+  noneBtn.textContent = '없음';
+  noneItem.appendChild(noneBtn);
+  panel.appendChild(noneItem);
+
+  w.categories.forEach((cat, index) => {
+    const item = document.createElement('div');
+    item.className = 'memo-editor-category-menu-item';
+    if (index === w.categories.length - 1) {
+      item.classList.add('memo-editor-category-menu-item--last');
+    }
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'memo-editor-category-option';
+    btn.dataset.categoryId = cat.id;
+    btn.textContent = cat.name;
+    item.appendChild(btn);
+    panel.appendChild(item);
+  });
+
+  picker.appendChild(panel);
+  return picker;
+}
+
+
+function addMemoCategory(w, name) {
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) {
+    showToast('카테고리 이름을 입력해주세요.');
+    return false;
+  }
+  if (trimmed.length > MEMO_CATEGORY_NAME_MAX_LENGTH) {
+    showToast(`카테고리 이름은 ${MEMO_CATEGORY_NAME_MAX_LENGTH}자 이하로 입력해주세요.`);
+    return false;
+  }
+
+  ensureMemoWidgetData(w);
+  const duplicate = (w.categories ?? []).some(
+    (cat) => cat.name.trim().toLowerCase() === trimmed.toLowerCase()
+  );
+  if (duplicate) {
+    showToast('이미 같은 이름의 카테고리가 있습니다.');
+    return false;
+  }
+
+  w.categories.push({ id: crypto.randomUUID(), name: trimmed });
+  syncMemoWidgetToEntry(w);
+  saveEntries();
+  return true;
+}
+
+
+function renameMemoCategory(w, categoryId, name) {
+  const cat = findMemoCategory(w, categoryId);
+  if (!cat) return false;
+
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) {
+    showToast('카테고리 이름을 입력해주세요.');
+    return false;
+  }
+  if (trimmed.length > MEMO_CATEGORY_NAME_MAX_LENGTH) {
+    showToast(`카테고리 이름은 ${MEMO_CATEGORY_NAME_MAX_LENGTH}자 이하로 입력해주세요.`);
+    return false;
+  }
+
+  const duplicate = (w.categories ?? []).some(
+    (item) => item.id !== categoryId && item.name.trim().toLowerCase() === trimmed.toLowerCase()
+  );
+  if (duplicate) {
+    showToast('이미 같은 이름의 카테고리가 있습니다.');
+    return false;
+  }
+
+  cat.name = trimmed;
+  syncMemoWidgetToEntry(w);
+  saveEntries();
+  return true;
+}
+
+
+function deleteMemoCategory(w, categoryId) {
+  ensureMemoWidgetData(w);
+  w.categories = (w.categories ?? []).filter((cat) => cat.id !== categoryId);
+  w.memos.forEach((memo) => {
+    if (normalizeMemoCategoryValue(memo.category) === categoryId) {
+      memo.category = '';
+    }
+  });
+  if (w.activeCategory === categoryId) {
+    w.activeCategory = MEMO_CATEGORY_ALL;
+  }
+  syncMemoWidgetToEntry(w);
+  saveEntries();
+}
+
+
 function getSortedMemos(w) {
-  return [...w.memos].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  const sortBy = normalizeMemoSortBy(w.sortBy);
+  const sorted = [...w.memos];
+
+  if (sortBy === 'updatedAt-desc') {
+    sorted.sort((a, b) => getMemoSortTimestamp(b) - getMemoSortTimestamp(a));
+  } else if (sortBy === 'updatedAt-asc') {
+    sorted.sort((a, b) => getMemoSortTimestamp(a) - getMemoSortTimestamp(b));
+  } else if (sortBy === 'title-asc') {
+    sorted.sort((a, b) =>
+      (a.title || '제목 없음').localeCompare(b.title || '제목 없음', 'ko', { sensitivity: 'base' })
+    );
+  }
+
+  return sorted;
 }
 
 
@@ -1839,6 +3299,19 @@ function renderMemoHome(container, w) {
 
   const home = document.createElement('div');
   home.className = 'memo-home';
+  if (isMemoSearchOpen) {
+    home.classList.add('memo-home--search-open');
+  }
+
+  const cardsSection = document.createElement('section');
+  cardsSection.className = 'memo-home-cards';
+
+  if (isMemoSearchOpen) {
+    home.append(buildMemoHomeSearchBar(), cardsSection);
+    renderMemoHomeCardsSection(cardsSection, w);
+    container.appendChild(home);
+    return;
+  }
 
   const cover = document.createElement('section');
   cover.className = 'memo-home-cover';
@@ -1871,65 +3344,38 @@ function renderMemoHome(container, w) {
   const toolbar = document.createElement('nav');
   toolbar.className = 'memo-home-toolbar glass-panel';
 
+  const sortAnchor = document.createElement('div');
+  sortAnchor.className = 'memo-home-sort-anchor';
+
   const sortBtn = document.createElement('button');
   sortBtn.type = 'button';
   sortBtn.className = 'memo-home-sort';
   sortBtn.textContent = '정렬 ▾';
+  sortBtn.setAttribute('aria-haspopup', 'menu');
+  sortBtn.setAttribute('aria-expanded', 'false');
+
+  sortAnchor.append(sortBtn, buildMemoSortMenu(w));
+
+  const categoryAnchor = document.createElement('div');
+  categoryAnchor.className = 'memo-home-category-anchor';
 
   const categoryBtn = document.createElement('button');
   categoryBtn.type = 'button';
   categoryBtn.className = 'memo-home-category';
   categoryBtn.textContent = '카테고리';
+  categoryBtn.setAttribute('aria-haspopup', 'menu');
+  categoryBtn.setAttribute('aria-expanded', 'false');
+
+  categoryAnchor.append(categoryBtn, buildMemoCategoryMenu(w));
 
   const editBtn = document.createElement('button');
   editBtn.type = 'button';
   editBtn.className = 'memo-home-edit';
   editBtn.textContent = '편집';
 
-  toolbar.append(sortBtn, categoryBtn, editBtn);
+  toolbar.append(sortAnchor, categoryAnchor, editBtn);
 
-  const cardsSection = document.createElement('section');
-  cardsSection.className = 'memo-home-cards';
-
-  if (w.memos.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'memo-home-empty';
-    empty.textContent = '작성된 다이어리가 없습니다.';
-    cardsSection.appendChild(empty);
-  } else {
-    const grid = document.createElement('div');
-    grid.className = 'memo-home-card-grid';
-
-    getSortedMemos(w).forEach((memo) => {
-      const card = document.createElement('article');
-      card.className = 'memo-home-card';
-      card.dataset.memoId = memo.id;
-
-      const thumb = document.createElement('div');
-      thumb.className = 'memo-home-card-thumb';
-      if (memo.coverImage) {
-        const img = document.createElement('img');
-        img.src = memo.coverImage;
-        img.alt = '';
-        thumb.appendChild(img);
-      } else {
-        thumb.textContent = '대표사진';
-      }
-
-      const title = document.createElement('h3');
-      title.className = 'memo-home-card-title';
-      title.textContent = memo.title || '제목 없음';
-
-      const date = document.createElement('p');
-      date.className = 'memo-home-card-date';
-      date.textContent = formatMemoDate(memo.updatedAt);
-
-      card.append(thumb, title, date);
-      grid.appendChild(card);
-    });
-
-    cardsSection.appendChild(grid);
-  }
+  renderMemoHomeCardsSection(cardsSection, w);
 
   const fab = document.createElement('div');
   fab.className = 'memo-home-fab';
@@ -1964,6 +3410,7 @@ function renderMemoHome(container, w) {
 
   home.append(cover, toolbar, cardsSection, fab);
   container.appendChild(home);
+  syncMemoHomeMenusUi();
 }
 
 
@@ -1973,6 +3420,10 @@ function renderMemoFullscreen() {
 
   dom.memoFullscreenBody.replaceChildren();
   dom.memoFullscreenBody.classList.toggle('memo-fullscreen-body--home', fullscreenViewMode === 'home');
+  dom.memoFullscreenBody.classList.toggle(
+    'memo-fullscreen-body--home-search',
+    fullscreenViewMode === 'home' && isMemoSearchOpen
+  );
   dom.memoFullscreenBody.classList.toggle('memo-fullscreen-body--editor', fullscreenViewMode === 'editor');
   dom.memoFullscreenBody.classList.toggle(
     'memo-fullscreen-body--profile-editor',
@@ -2009,7 +3460,9 @@ export function openMemoFullscreen(widgetId) {
   fullscreenViewMode = 'home';
   selectedMemoId = null;
   fabExpanded = false;
-  isCreateSetupMenuOpen = false;
+  isMemoSearchOpen = false;
+  memoSearchQuery = '';
+  isMemoNoteMenuOpen = false;
   resetTemplatePopupSessionState();
   resetPageEditorSessionState();
   editorDrafts.delete(widgetId);
@@ -2048,6 +3501,7 @@ export function closeMemoFullscreen() {
       dom.memoFullscreenBody.replaceChildren();
       dom.memoFullscreenBody.classList.remove(
         'memo-fullscreen-body--home',
+        'memo-fullscreen-body--home-search',
         'memo-fullscreen-body--editor',
         'memo-fullscreen-body--profile-editor',
         'memo-fullscreen-body--create-setup',
@@ -2079,7 +3533,7 @@ function openMemoCreateSetup() {
   fullscreenViewMode = 'createSetup';
   selectedMemoId = null;
   fabExpanded = false;
-  isCreateSetupMenuOpen = false;
+  isMemoNoteMenuOpen = false;
   resetTemplatePopupSessionState();
   currentDiaryId = null;
   currentPageId = null;
@@ -2091,7 +3545,7 @@ function openMemoCreateSetup() {
 
 function goBackFromCreateSetup() {
   const w = getActiveMemoWidget();
-  isCreateSetupMenuOpen = false;
+  isMemoNoteMenuOpen = false;
   resetTemplatePopupSessionState();
   if (w) {
     pageEditorDrafts.delete(w.id);
@@ -2114,7 +3568,7 @@ function startMemoFromTemplateSelection(templateInfo = {}) {
   const w = getActiveMemoWidget();
   if (!w) return;
 
-  isCreateSetupMenuOpen = false;
+  isMemoNoteMenuOpen = false;
   resetTemplatePopupSessionState();
   fullscreenViewMode = 'editor';
   selectedMemoId = null;
@@ -2131,7 +3585,7 @@ function openMemoEditor(memoId = null) {
   const w = getActiveMemoWidget();
   if (!w) return;
 
-  isCreateSetupMenuOpen = false;
+  isMemoNoteMenuOpen = false;
   fullscreenViewMode = 'editor';
   selectedMemoId = memoId;
   fabExpanded = false;
@@ -2382,7 +3836,7 @@ function openProfileEditor() {
   if (!w) return;
 
   ensureMemoWidgetData(w);
-  isCreateSetupMenuOpen = false;
+  isMemoNoteMenuOpen = false;
   fullscreenViewMode = 'profileEditor';
   fabExpanded = false;
   const profile = getMemoProfile();
@@ -2545,58 +3999,197 @@ function renderProfileEditor(container, w) {
 }
 
 
-function renderMemoCreateSetup(container, w) {
-  const setup = document.createElement('div');
-  setup.className = 'memo-create-setup';
+function renderMemoSinglePageContent(pageEl, page) {
+  const isContinuation = isPageContinuation(page);
+  if (isContinuation) {
+    pageEl.classList.add('memo-note-page--continuation');
+  }
+
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'memo-note-page-edit';
+  editBtn.textContent = '편집';
+
+  const header = document.createElement('header');
+  header.className = 'memo-note-page-header';
+
+  const categoryText = formatPageCategoryDisplay(page.category);
+  if (categoryText) {
+    const categoryEl = document.createElement('p');
+    categoryEl.className = 'memo-note-page-category';
+    categoryEl.textContent = categoryText;
+    header.appendChild(categoryEl);
+  }
+
+  if (isContinuation) {
+    header.append(editBtn);
+    pageEl.append(header);
+  } else {
+    const dateEl = document.createElement('p');
+    dateEl.className = 'memo-note-page-date';
+    dateEl.textContent = formatPageDateDisplay(page.date);
+    header.append(dateEl, editBtn);
+
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'memo-note-page-title';
+    titleEl.textContent = page.title || '제목 없음';
+
+    const divider = document.createElement('hr');
+    divider.className = 'memo-note-page-divider';
+    divider.setAttribute('aria-hidden', 'true');
+
+    pageEl.append(header, titleEl, divider);
+  }
+
+  const contentEl = document.createElement('div');
+  contentEl.className = 'memo-note-page-content memo-sheet-read-content';
+  if (isContinuation) {
+    contentEl.classList.add('memo-note-page-content--continuation');
+  }
+  renderMemoPageContentIntoElement(contentEl, page.content);
+  pageEl.appendChild(contentEl);
+}
+
+
+function navigateMemoReadPage(w, direction) {
+  const memo = getActiveCreateSetupMemo(w);
+  const pages = memo?.pages ?? [];
+  if (!pages.length) return;
+
+  let idx = pages.findIndex((p) => p.id === currentPageId);
+  if (idx < 0) idx = 0;
+
+  const nextIdx = idx + direction;
+  if (nextIdx < 0 || nextIdx >= pages.length) return;
+
+  currentPageId = pages[nextIdx].id;
+  refreshMemoSinglePageView(w);
+}
+
+
+function updateMemoNotePageNavState(navEl, memo) {
+  if (!navEl) return;
+
+  const pages = memo?.pages ?? [];
+  if (pages.length <= 1) {
+    navEl.hidden = true;
+    return;
+  }
+
+  navEl.hidden = false;
+
+  let idx = pages.findIndex((p) => p.id === currentPageId);
+  if (idx < 0) idx = 0;
+
+  const indicator = navEl.querySelector('.memo-note-page-indicator');
+  const prevBtn = navEl.querySelector('.memo-note-page-prev');
+  const nextBtn = navEl.querySelector('.memo-note-page-next');
+
+  if (indicator) indicator.textContent = `${idx + 1} / ${pages.length}`;
+  if (prevBtn) prevBtn.disabled = idx <= 0;
+  if (nextBtn) nextBtn.disabled = idx >= pages.length - 1;
+}
+
+
+function buildMemoNotePageNav(memo) {
+  const nav = document.createElement('div');
+  nav.className = 'memo-note-page-nav';
+
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'memo-note-page-prev';
+  prevBtn.textContent = '‹';
+  prevBtn.setAttribute('aria-label', '이전 페이지');
+
+  const indicator = document.createElement('span');
+  indicator.className = 'memo-note-page-indicator';
+
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'memo-note-page-next';
+  nextBtn.textContent = '›';
+  nextBtn.setAttribute('aria-label', '다음 페이지');
+
+  nav.append(prevBtn, indicator, nextBtn);
+  updateMemoNotePageNavState(nav, memo);
+  return nav;
+}
+
+
+function refreshMemoSinglePageView(w) {
+  const pageArea = dom.memoFullscreenBody?.querySelector('.memo-note-page-area');
+  if (!pageArea) {
+    renderMemoFullscreen();
+    return;
+  }
+
+  const memo = getActiveCreateSetupMemo(w);
+  if (memo) resolveCurrentPageIdForDiary(memo);
+
+  pageArea.replaceChildren();
+
+  const pages = memo?.pages ?? [];
+  if (!pages.length) {
+    const empty = document.createElement('div');
+    empty.className = 'memo-note-page-area-empty';
+    empty.textContent = 'Empty';
+    pageArea.appendChild(empty);
+    return;
+  }
+
+  let page = pages.find((p) => p.id === currentPageId) ?? null;
+  if (!page) {
+    page = pages[0];
+    currentPageId = page.id;
+  }
+
+  const pageEl = document.createElement('article');
+  pageEl.className = 'memo-note-page glass-panel';
+  pageEl.dataset.pageId = page.id;
+  renderMemoSinglePageContent(pageEl, page);
+  pageArea.appendChild(pageEl);
+
+  if (pages.length > 1) {
+    pageArea.appendChild(buildMemoNotePageNav(memo));
+  }
+
+  setupMemoReadModeImages(pageArea).catch(() => {});
+}
+
+
+function renderMemoSinglePageView(container, w) {
+  const view = document.createElement('div');
+  view.className = 'memo-note-view';
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'memo-note-toolbar';
 
   const backBtn = document.createElement('button');
   backBtn.type = 'button';
-  backBtn.className = 'memo-create-setup-back';
+  backBtn.className = 'memo-note-back';
   backBtn.textContent = '←';
-  backBtn.setAttribute('aria-label', '홈으로');
-
-  const book = document.createElement('div');
-  book.className = 'memo-create-setup-binder memo-binder-book glass-panel';
-
-  const leftCover = document.createElement('div');
-  leftCover.className = 'memo-binder-cover-side memo-binder-cover-side--left';
-
-  const leftSlot = document.createElement('div');
-  leftSlot.className = 'memo-binder-sheet-slot memo-binder-sheet-slot--left';
-  leftCover.appendChild(leftSlot);
-
-  const spine = document.createElement('div');
-  spine.className = 'memo-create-setup-spine memo-binder-rings';
-  spine.setAttribute('aria-hidden', 'true');
-
-  for (let i = 0; i < 3; i += 1) {
-    const ring = document.createElement('span');
-    ring.className = 'memo-create-setup-ring';
-    spine.appendChild(ring);
-  }
-
-  const rightCover = document.createElement('div');
-  rightCover.className = 'memo-binder-cover-side memo-binder-cover-side--right';
+  backBtn.setAttribute('aria-label', 'Memo 홈으로');
 
   const menuAnchor = document.createElement('div');
-  menuAnchor.className = 'memo-create-setup-menu-anchor';
+  menuAnchor.className = 'memo-note-menu-anchor';
 
-  const bookmark = document.createElement('button');
-  bookmark.type = 'button';
-  bookmark.className = 'memo-create-setup-bookmark memo-create-setup-bookmark-toggle';
-  bookmark.setAttribute('aria-label', '설정 메뉴 열기');
-  bookmark.setAttribute('aria-expanded', 'false');
-  bookmark.setAttribute('aria-haspopup', 'menu');
+  const moreBtn = document.createElement('button');
+  moreBtn.type = 'button';
+  moreBtn.className = 'memo-note-more';
+  moreBtn.textContent = '⋮';
+  moreBtn.setAttribute('aria-label', '메모 메뉴');
+  moreBtn.setAttribute('aria-expanded', 'false');
+  moreBtn.setAttribute('aria-haspopup', 'menu');
 
   const menuPanel = document.createElement('div');
-  menuPanel.className = 'memo-create-setup-menu';
+  menuPanel.className = 'memo-note-menu';
   menuPanel.setAttribute('role', 'menu');
   menuPanel.hidden = true;
 
   createSetupMenuItems.forEach((item, index) => {
     const menuBtn = document.createElement('button');
     menuBtn.type = 'button';
-    menuBtn.className = 'memo-create-setup-menu-item';
+    menuBtn.className = 'memo-note-menu-item';
     menuBtn.dataset.setupId = item.id;
     menuBtn.setAttribute('role', 'menuitem');
     menuBtn.textContent = item.label;
@@ -2604,37 +4197,33 @@ function renderMemoCreateSetup(container, w) {
 
     if (index < createSetupMenuItems.length - 1) {
       const divider = document.createElement('span');
-      divider.className = 'memo-create-setup-menu-divider';
+      divider.className = 'memo-note-menu-divider';
       divider.setAttribute('aria-hidden', 'true');
       menuPanel.appendChild(divider);
     }
   });
 
-  menuAnchor.append(bookmark, menuPanel);
+  menuAnchor.append(moreBtn, menuPanel);
+  toolbar.append(backBtn, menuAnchor);
 
-  const rightSlot = document.createElement('div');
-  rightSlot.className = 'memo-binder-sheet-slot memo-binder-sheet-slot--right';
-
-  rightCover.append(menuAnchor, rightSlot);
-  book.append(leftCover, spine, rightCover);
-
-  const memo = getActiveCreateSetupMemo(w);
-  const nav = buildBinderPageNav(memo);
-
-  const binderStage = document.createElement('div');
-  binderStage.className = 'memo-binder-stage';
-  binderStage.append(book, nav);
+  const pageArea = document.createElement('div');
+  pageArea.className = 'memo-note-page-area';
 
   const stage = document.createElement('div');
-  stage.className = 'memo-create-setup-stage';
-  stage.append(binderStage, buildTemplatePopupElement());
+  stage.className = 'memo-note-stage';
+  stage.append(toolbar, pageArea, buildTemplatePopupElement());
 
-  setup.append(backBtn, stage);
-  container.appendChild(setup);
+  view.appendChild(stage);
+  container.appendChild(view);
 
-  refreshBinderSpreadView(w);
-  syncCreateSetupMenuUi();
+  refreshMemoSinglePageView(w);
+  syncMemoNoteMenuUi();
   syncTemplatePopupUi();
+}
+
+
+function renderMemoCreateSetup(container, w) {
+  renderMemoSinglePageView(container, w);
 }
 
 
@@ -2650,7 +4239,7 @@ function saveProfileFromDraft(w) {
   saveMemoProfile();
 
   profileDrafts.delete(w.id);
-  isCreateSetupMenuOpen = false;
+  isMemoNoteMenuOpen = false;
   fullscreenViewMode = 'home';
   renderMemoFullscreen();
   showToast('프로필이 저장되었습니다.');
@@ -2659,7 +4248,7 @@ function saveProfileFromDraft(w) {
 
 function cancelProfileEditor(w) {
   profileDrafts.delete(w.id);
-  isCreateSetupMenuOpen = false;
+  isMemoNoteMenuOpen = false;
   fullscreenViewMode = 'home';
   renderMemoFullscreen();
 }
@@ -2775,7 +4364,7 @@ function saveMemoFromDraft(w) {
   }
 
   editorDrafts.delete(w.id);
-  isCreateSetupMenuOpen = false;
+  isMemoNoteMenuOpen = false;
   fullscreenViewMode = 'home';
   selectedMemoId = null;
   fabExpanded = false;
@@ -2798,7 +4387,7 @@ async function deleteMemo(w) {
 
   w.memos = w.memos.filter((m) => m.id !== selectedMemoId);
   editorDrafts.delete(w.id);
-  isCreateSetupMenuOpen = false;
+  isMemoNoteMenuOpen = false;
   fullscreenViewMode = 'home';
   selectedMemoId = null;
   fabExpanded = false;
@@ -2810,7 +4399,7 @@ async function deleteMemo(w) {
 
 function goBackToHome(w) {
   editorDrafts.delete(w.id);
-  isCreateSetupMenuOpen = false;
+  isMemoNoteMenuOpen = false;
   fullscreenViewMode = 'home';
   selectedMemoId = null;
   renderMemoFullscreen();
@@ -2823,12 +4412,21 @@ export function bindMemoFullscreenEvents() {
 
   dom.memoFullscreenBack.addEventListener('click', closeMemoFullscreen);
 
+  dom.memoFullscreenBody.addEventListener('input', (e) => {
+    if (fullscreenViewMode !== 'home' || !isMemoSearchOpen) return;
+    const input = e.target.closest('.memo-home-search-input');
+    if (!input) return;
+    memoSearchQuery = input.value;
+    syncMemoHomeSearchClearBtn();
+    refreshMemoHomeCardGrid(getActiveMemoWidget());
+  });
+
   dom.memoFullscreenBody.addEventListener('dblclick', (e) => {
     const w = getActiveMemoWidget();
     if (!w || fullscreenViewMode !== 'createSetup') return;
-    const sheet = e.target.closest('.memo-binder-sheet');
-    if (sheet?.dataset.pageId) {
-      openBinderPageEditor(w, sheet.dataset.pageId);
+    const pageEl = e.target.closest('.memo-note-page');
+    if (pageEl?.dataset.pageId) {
+      openBinderPageEditor(w, pageEl.dataset.pageId);
     }
   });
 
@@ -2837,13 +4435,114 @@ export function bindMemoFullscreenEvents() {
     if (!w) return;
 
     if (fullscreenViewMode === 'home') {
+      if (e.target.closest('.memo-category-add-cancel')) {
+        e.stopPropagation();
+        resetMemoCategoryInlineUi();
+        refreshMemoHomeCategoryMenu(w);
+        return;
+      }
+      if (e.target.closest('.memo-category-add-confirm')) {
+        e.stopPropagation();
+        const input = dom.memoFullscreenBody?.querySelector('.memo-category-inline-input--add');
+        if (addMemoCategory(w, input?.value ?? '')) {
+          resetMemoCategoryInlineUi();
+          refreshMemoHomeCategoryMenu(w);
+        }
+        return;
+      }
+      if (e.target.closest('.memo-category-edit-cancel')) {
+        e.stopPropagation();
+        resetMemoCategoryInlineUi();
+        refreshMemoHomeCategoryMenu(w);
+        return;
+      }
+      if (e.target.closest('.memo-category-edit-save')) {
+        e.stopPropagation();
+        const categoryId = e.target.closest('.memo-category-edit-save')?.dataset.categoryId;
+        const input = dom.memoFullscreenBody?.querySelector('.memo-category-inline-input--edit');
+        if (renameMemoCategory(w, categoryId, input?.value ?? '')) {
+          resetMemoCategoryInlineUi();
+          refreshMemoHomeCategoryMenu(w);
+        }
+        return;
+      }
+      if (e.target.closest('.memo-category-inline-input')) {
+        return;
+      }
+      if (e.target.closest('.memo-home-sort-option')) {
+        const btn = e.target.closest('.memo-home-sort-option');
+        w.sortBy = btn.dataset.sortBy;
+        syncMemoWidgetToEntry(w);
+        saveEntries();
+        closeMemoHomeMenus();
+        renderMemoFullscreen();
+        return;
+      }
+      if (e.target.closest('.memo-category-edit-button')) {
+        e.stopPropagation();
+        const categoryId = e.target.closest('.memo-category-edit-button')?.dataset.categoryId;
+        if (!findMemoCategory(w, categoryId)) return;
+        isMemoCategoryAdding = false;
+        memoCategoryEditingId = categoryId;
+        refreshMemoHomeCategoryMenu(w);
+        return;
+      }
+      if (e.target.closest('.memo-category-delete-button')) {
+        e.stopPropagation();
+        const categoryId = e.target.closest('.memo-category-delete-button')?.dataset.categoryId;
+        const cat = findMemoCategory(w, categoryId);
+        if (!cat) return;
+        openConfirmDialog({
+          title: `'${cat.name}' 카테고리를 삭제할까요?`,
+          message: '이 카테고리에 포함된 메모는 삭제되지 않으며 카테고리만 해제됩니다.',
+          confirmLabel: '삭제',
+          cancelLabel: '취소',
+          danger: true,
+        }).then((confirmed) => {
+          if (!confirmed) return;
+          deleteMemoCategory(w, categoryId);
+          resetMemoCategoryInlineUi();
+          refreshMemoHomeCategoryMenu(w);
+        });
+        return;
+      }
+      if (e.target.closest('.memo-home-category-add')) {
+        e.stopPropagation();
+        resetMemoCategoryInlineUi();
+        isMemoCategoryAdding = true;
+        isMemoCategoryMenuOpen = true;
+        refreshMemoHomeCategoryMenu(w);
+        return;
+      }
+      if (e.target.closest('.memo-category-filter-button')) {
+        const btn = e.target.closest('.memo-category-filter-button');
+        w.activeCategory = btn.dataset.categoryId ?? MEMO_CATEGORY_ALL;
+        syncMemoWidgetToEntry(w);
+        saveEntries();
+        closeMemoHomeMenus();
+        renderMemoFullscreen();
+        return;
+      }
+      if (e.target.closest('.memo-home-sort-menu') || e.target.closest('.memo-home-category-menu')) {
+        return;
+      }
       if (e.target.closest('.memo-home-sort')) {
-        showToast('정렬 기능은 준비 중입니다.');
+        isMemoCategoryMenuOpen = false;
+        resetMemoCategoryInlineUi();
+        isMemoSortMenuOpen = !isMemoSortMenuOpen;
+        syncMemoHomeMenusUi();
         return;
       }
       if (e.target.closest('.memo-home-category')) {
-        showToast('카테고리 기능은 준비 중입니다.');
+        isMemoSortMenuOpen = false;
+        const willOpen = !isMemoCategoryMenuOpen;
+        if (willOpen) resetMemoCategoryInlineUi();
+        isMemoCategoryMenuOpen = willOpen;
+        syncMemoHomeMenusUi();
         return;
+      }
+      if (isMemoSortMenuOpen || isMemoCategoryMenuOpen) {
+        closeMemoHomeMenus();
       }
       if (e.target.closest('.memo-home-edit')) {
         openProfileEditor();
@@ -2854,7 +4553,15 @@ export function bindMemoFullscreenEvents() {
         return;
       }
       if (e.target.closest('.memo-home-fab-search')) {
-        showToast('검색 기능은 준비 중입니다.');
+        openMemoSearch();
+        return;
+      }
+      if (e.target.closest('.memo-home-search-close')) {
+        closeMemoSearch();
+        return;
+      }
+      if (e.target.closest('.memo-home-search-clear')) {
+        clearMemoHomeSearch();
         return;
       }
       if (e.target.closest('.memo-home-fab-new')) {
@@ -2872,6 +4579,30 @@ export function bindMemoFullscreenEvents() {
     }
 
     if (fullscreenViewMode === 'pageEditor') {
+      if (e.target.closest('.memo-editor-category-option')) {
+        const option = e.target.closest('.memo-editor-category-option');
+        const draft = pageEditorDrafts.get(w.id);
+        if (!draft) return;
+        pageEditorDrafts.set(w.id, {
+          ...draft,
+          memoCategoryId: option.dataset.categoryId ?? '',
+        });
+        closeMemoEditorCategoryPicker();
+        syncEditorCategoryBtn(w);
+        return;
+      }
+      if (e.target.closest('.memo-editor-category-picker-panel')) {
+        return;
+      }
+      if (e.target.closest('.memo-text-page-category-btn')) {
+        e.stopPropagation();
+        isMemoEditorCategoryPickerOpen = !isMemoEditorCategoryPickerOpen;
+        syncMemoEditorCategoryPickerUi();
+        return;
+      }
+      if (isMemoEditorCategoryPickerOpen) {
+        closeMemoEditorCategoryPicker();
+      }
       if (e.target.closest('.memo-page-leave-temp')) {
         saveTemporaryPageToDraftPages(w);
         return;
@@ -2888,10 +4619,6 @@ export function bindMemoFullscreenEvents() {
         goBackFromPageEditor(w);
         return;
       }
-      if (e.target.closest('.memo-text-page-category-btn')) {
-        showToast('카테고리 관리 기능은 준비 중입니다.');
-        return;
-      }
       if (e.target.closest('.memo-text-page-save')) {
         saveTextPageFromDraft(w);
         return;
@@ -2901,6 +4628,15 @@ export function bindMemoFullscreenEvents() {
         return;
       }
       const toolBtn = e.target.closest('.memo-text-page-tool');
+      if (toolBtn?.dataset.toolId === 'photo') {
+        e.stopPropagation();
+        const fileInput = dom.memoFullscreenBody?.querySelector('.memo-photo-file-input');
+        const contentEditor = dom.memoFullscreenBody?.querySelector('.memo-text-page-content');
+        if (fileInput && contentEditor) {
+          openMemoPhotoPicker(contentEditor, fileInput, dom.memoFullscreenBody);
+        }
+        return;
+      }
       if (toolBtn) {
         showToast(toolBtn.dataset.toolToast || '준비 중인 기능입니다.');
         return;
@@ -2909,19 +4645,18 @@ export function bindMemoFullscreenEvents() {
     }
 
     if (fullscreenViewMode === 'createSetup') {
-      if (e.target.closest('.memo-binder-nav-prev')) {
-        navigateBinderSpread(w, -1);
+      if (e.target.closest('.memo-note-page-prev')) {
+        navigateMemoReadPage(w, -1);
         return;
       }
-      if (e.target.closest('.memo-binder-nav-next')) {
-        navigateBinderSpread(w, 1);
+      if (e.target.closest('.memo-note-page-next')) {
+        navigateMemoReadPage(w, 1);
         return;
       }
-      const binderEditBtn = e.target.closest('.memo-binder-page-edit');
-      if (binderEditBtn) {
-        const sheet = binderEditBtn.closest('.memo-binder-sheet');
-        if (sheet?.dataset.pageId) {
-          openBinderPageEditor(w, sheet.dataset.pageId);
+      if (e.target.closest('.memo-note-page-edit')) {
+        const pageEl = e.target.closest('.memo-note-page');
+        if (pageEl?.dataset.pageId) {
+          openBinderPageEditor(w, pageEl.dataset.pageId);
         }
         return;
       }
@@ -2960,32 +4695,32 @@ export function bindMemoFullscreenEvents() {
         closeTemplatePopup();
         return;
       }
-      if (e.target.closest('.memo-create-setup-back')) {
+      if (e.target.closest('.memo-note-back')) {
         goBackFromCreateSetup();
         return;
       }
-      if (e.target.closest('.memo-create-setup-bookmark-toggle')) {
+      if (e.target.closest('.memo-note-more')) {
         e.stopPropagation();
-        toggleCreateSetupMenu();
+        toggleMemoNoteMenu();
         return;
       }
-      const menuItem = e.target.closest('.memo-create-setup-menu-item');
+      const menuItem = e.target.closest('.memo-note-menu-item');
       if (menuItem) {
         e.stopPropagation();
         if (menuItem.dataset.setupId === 'template') {
-          closeCreateSetupMenu();
+          closeMemoNoteMenu();
           openTemplatePopup();
           return;
         }
         showToast('준비 중인 기능입니다.');
-        closeCreateSetupMenu();
+        closeMemoNoteMenu();
         return;
       }
-      if (e.target.closest('.memo-create-setup-menu')) {
+      if (e.target.closest('.memo-note-menu')) {
         return;
       }
-      if (isCreateSetupMenuOpen) {
-        closeCreateSetupMenu();
+      if (isMemoNoteMenuOpen) {
+        closeMemoNoteMenu();
       }
       if (isTemplatePopupOpen) {
         closeTemplatePopup();
@@ -3058,14 +4793,34 @@ export function bindMemoFullscreenEvents() {
         removePageEditorLeaveDialog();
         return;
       }
+      if (isMemoEditorCategoryPickerOpen) {
+        closeMemoEditorCategoryPicker();
+        return;
+      }
+    }
+    if (fullscreenViewMode === 'home') {
+      if (isMemoCategoryAdding || memoCategoryEditingId) {
+        resetMemoCategoryInlineUi();
+        const activeWidget = getActiveMemoWidget();
+        if (activeWidget) refreshMemoHomeCategoryMenu(activeWidget);
+        return;
+      }
+      if (isMemoSortMenuOpen || isMemoCategoryMenuOpen) {
+        closeMemoHomeMenus();
+        return;
+      }
+      if (isMemoSearchOpen) {
+        closeMemoSearch();
+        return;
+      }
     }
     if (fullscreenViewMode !== 'createSetup') return;
     if (isTemplatePopupOpen) {
       closeTemplatePopup();
       return;
     }
-    if (isCreateSetupMenuOpen) {
-      closeCreateSetupMenu();
+    if (isMemoNoteMenuOpen) {
+      closeMemoNoteMenu();
     }
   });
 }

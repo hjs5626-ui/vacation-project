@@ -637,6 +637,18 @@
     <span id="toast-msg"></span>
   </div>
 
+  <!-- App confirm dialog (Memo category delete, etc.) -->
+  <div class="app-dialog-overlay hidden" id="app-confirm-overlay">
+    <div class="app-dialog-panel glass-panel" id="app-confirm-panel">
+      <h3 class="app-dialog-title" id="app-confirm-title">확인</h3>
+      <p class="app-dialog-message" id="app-confirm-message"></p>
+      <div class="app-dialog-actions">
+        <button type="button" class="btn-secondary app-dialog-btn" id="app-confirm-cancel">취소</button>
+        <button type="button" class="btn-primary app-dialog-btn" id="app-confirm-ok">확인</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══════════════════════════════════════════════ -->
   <!--  CONTEXT MENU (Long Press / Right Click)        -->
   <!-- ═══════════════════════════════════════════════ -->

@@ -22,6 +22,13 @@ function migrateEntries(entries) {
       ];
       delete entry.widgets;
     }
+    if (Array.isArray(entry.pages)) {
+      entry.pages.forEach((page) => {
+        if (page && !Array.isArray(page.widgets)) {
+          page.widgets = [];
+        }
+      });
+    }
   });
   return entries;
 }

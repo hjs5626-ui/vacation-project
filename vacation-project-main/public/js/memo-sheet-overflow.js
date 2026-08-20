@@ -23,6 +23,7 @@ export function getAvailableEditorWidth(contentEditor) {
 }
 
 export function getSheetContentMaxHeight(contentEditor) {
+  if (contentEditor?.clientHeight > 0) return contentEditor.clientHeight;
   const wrap = contentEditor?.closest('.memo-text-page-content-wrap');
   if (wrap?.clientHeight > 0) return wrap.clientHeight;
   return contentEditor?.clientHeight ?? 1;
@@ -39,11 +40,14 @@ export function getOrCreateMeasureEditor(contentEditor) {
     measureRoot.appendChild(measure);
   }
 
-  measure.style.width = `${getAvailableEditorWidth(contentEditor)}px`;
-  measure.style.height = 'auto';
-  measure.style.minHeight = '0';
-  measure.style.maxHeight = 'none';
-  measure.style.overflow = 'visible';
+  const maxH = getSheetContentMaxHeight(contentEditor);
+  const width = getAvailableEditorWidth(contentEditor);
+  measure.style.width = `${width}px`;
+  measure.style.height = `${maxH}px`;
+  measure.style.minHeight = `${maxH}px`;
+  measure.style.maxHeight = `${maxH}px`;
+  measure.style.overflow = 'hidden';
+  measure.style.boxSizing = 'border-box';
   return measure;
 }
 
@@ -56,13 +60,16 @@ export function applyPhotoMeasureHints(measure, contentEditor) {
     const img = block.querySelector('img[data-memo-image-id]');
     if (!img) return;
 
+    block.style.width = `${blockWidth}px`;
+    block.style.maxWidth = '100%';
+
     const naturalWidth = Number(img.dataset.memoImageWidth);
     const naturalHeight = Number(img.dataset.memoImageHeight);
     if (naturalWidth > 0 && naturalHeight > 0) {
-      const displayHeight = (blockWidth * naturalHeight) / naturalWidth;
       img.style.display = 'block';
       img.style.width = '100%';
-      img.style.height = `${displayHeight}px`;
+      img.style.height = 'auto';
+      img.style.aspectRatio = `${naturalWidth} / ${naturalHeight}`;
     }
   });
 }
@@ -70,14 +77,40 @@ export function applyPhotoMeasureHints(measure, contentEditor) {
 function setMeasureHtml(measure, html, contentEditor) {
   measure.replaceChildren();
   if (html) measure.innerHTML = html;
-  measure.querySelectorAll('.memo-photo-delete-toolbar').forEach((el) => el.remove());
+  measure.querySelectorAll('.memo-photo-delete-toolbar, .memo-photo-selection-actions').forEach((el) => el.remove());
   applyPhotoMeasureHints(measure, contentEditor);
 }
 
 export function measureHtmlContentHeight(contentEditor, html) {
   const measure = getOrCreateMeasureEditor(contentEditor);
   setMeasureHtml(measure, html ?? '', contentEditor);
-  return measure.offsetHeight;
+  return measure.scrollHeight;
+}
+
+export function withSheetMeasureContinuation(contentEditor, isContinuation, fn) {
+  const wrap = contentEditor?.closest('.memo-text-page-content-wrap');
+  const shell = contentEditor?.closest('.memo-text-page-shell');
+  if (!wrap || typeof fn !== 'function') return fn?.();
+
+  const hadWrap = wrap.classList.contains('memo-text-page-content-wrap--continuation');
+  const hadShell = shell?.classList.contains('is-continuation') ?? false;
+
+  wrap.classList.toggle('memo-text-page-content-wrap--continuation', isContinuation);
+  shell?.classList.toggle('is-continuation', isContinuation);
+  void wrap.offsetHeight;
+
+  try {
+    return fn();
+  } finally {
+    wrap.classList.toggle('memo-text-page-content-wrap--continuation', hadWrap);
+    shell?.classList.toggle('is-continuation', hadShell);
+  }
+}
+
+export function splitHtmlAtSheetLimitForSheet(contentEditor, html, isContinuation) {
+  return withSheetMeasureContinuation(contentEditor, isContinuation, () =>
+    splitHtmlAtSheetLimit(contentEditor, html)
+  );
 }
 
 export function doesHtmlFitEditorSheet(contentEditor, html) {
@@ -349,7 +382,7 @@ export function measurePhotoBlockHeight(contentEditor, photoBlockHtml) {
   const measure = getOrCreateMeasureEditor(contentEditor);
   const baseHtml = contentEditor?.innerHTML ?? '';
   setMeasureHtml(measure, baseHtml + photoBlockHtml, contentEditor);
-  return measure.offsetHeight;
+  return measure.scrollHeight;
 }
 
 export function wouldPhotoBlockFitOnPage(contentEditor, photoBlockOuterHtml) {

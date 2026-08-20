@@ -10,6 +10,7 @@ import { buildSizeCarousel, buildTodoSizeCarousel, buildLedgerSizeCarousel, buil
 import { openAddModal, closeAddModal, showModalStep, bindColorPicker, bindVisibilityOptions, createFile, createDiary } from './modals.js';
 import { bindLedgerDetailEvents } from './ledgerDetail.js';
 import { bindMemoFullscreenEvents } from './memo.js';
+import { initAppDialogs } from './dialogs.js';
 import { saveEntries, ensureMemoProfile, saveMemoProfile, DEFAULT_MEMO_PROFILE } from './state.js';
 import { showToast } from './utils.js';
 import { cancelPlacement, rerenderPlacedWidgets } from './widgets.js';
@@ -33,6 +34,7 @@ function init() {
   buildMemoSizeCarousel();
   bindLedgerDetailEvents();
   bindMemoFullscreenEvents();
+  initAppDialogs();
   bindTodoComposeSheetEvents();
   bindTodoGroupRenameEvents();
   bindTodoResizeSheetEvents();

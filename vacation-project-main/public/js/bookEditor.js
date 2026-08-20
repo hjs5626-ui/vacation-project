@@ -6,6 +6,27 @@ import { openDrawer } from './drawer.js';
 import { updateGridDimensionsFromContainer, buildLegoGrid } from './grid.js';
 import { rerenderPlacedWidgets } from './widgets.js';
 
+function ensurePageWidgets(pageData) {
+  if (!pageData) return [];
+  if (!Array.isArray(pageData.widgets)) {
+    pageData.widgets = [];
+  }
+  return pageData.widgets;
+}
+
+function bindCurrentPageWidgets(pageData) {
+  const widgets = ensurePageWidgets(pageData);
+  if (state.widgets !== widgets && state.widgets.length > 0) {
+    state.widgets.forEach((widget) => {
+      if (!widgets.some((existing) => existing.id === widget.id)) {
+        widgets.push(widget);
+      }
+    });
+  }
+  state.widgets = widgets;
+  return widgets;
+}
+
 export function openBookEditor(diary) {
   state.currentDiary = diary;
   state.currentSpreadIndex = 0;
@@ -103,7 +124,7 @@ function renderPage(container, pageData, pageIndex) {
       // Temporarily set grid container for the engine
       dom.editorWorkspace = container.querySelector('.page-grid-container');
       dom.legoGrid = container.querySelector('.page-grid');
-      state.widgets = pageData.widgets || [];
+      bindCurrentPageWidgets(pageData);
       
       updateGridDimensionsFromContainer();
       buildLegoGrid();
