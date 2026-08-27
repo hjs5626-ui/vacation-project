@@ -109,6 +109,13 @@ export const dom = {
   todoCarouselDots: $('#todo-carousel-dots'),
   btnChooseTodoSize: $('#btn-choose-todo-size'),
 
+  // To-Do detail modal
+  todoModalOverlay: $('#todo-modal-overlay'),
+  todoModal: $('#todo-modal'),
+  todoModalClose: $('#todo-modal-close'),
+  todoModalTitle: $('#todo-modal-title'),
+  todoDetailBody: $('#todo-modal-body'),
+
   // To-Do compose sheet
   todoComposeOverlay: $('#todo-compose-overlay'),
   todoComposeHeading: $('#todo-compose-heading'),

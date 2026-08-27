@@ -14,11 +14,12 @@ import { initAppDialogs } from './dialogs.js';
 import { saveEntries, ensureMemoProfile, saveMemoProfile, DEFAULT_MEMO_PROFILE } from './state.js';
 import { showToast } from './utils.js';
 import { cancelPlacement, rerenderPlacedWidgets } from './widgets.js';
-import { bindTodoComposeSheetEvents, bindTodoGroupRenameEvents, bindTodoResizeSheetEvents } from './todo.js';
+import { bindTodoComposeSheetEvents, bindTodoResizeSheetEvents, bindTodoDetailEvents, closeTodoDetailPanel } from './todo.js';
 import { updateGridDimensionsFromContainer, buildLegoGrid } from './grid.js';
 import { renderBreadcrumbs } from './folderManager.js';
 import { renderStorageBox } from './storageBox.js';
 import { closeBookEditor, turnPageLeft, turnPageRight, renderBookSpread, openPageOverview, closePageOverview } from './bookEditor.js';
+import { initThumbnailEditor } from './thumbnailEditor.js';
 
 
 /* ── Initialization ──────────────────────────────────── */
@@ -36,8 +37,9 @@ function init() {
   bindMemoFullscreenEvents();
   initAppDialogs();
   bindTodoComposeSheetEvents();
-  bindTodoGroupRenameEvents();
   bindTodoResizeSheetEvents();
+  bindTodoDetailEvents();
+  initThumbnailEditor();
   renderMainHero();
   bindProfileEditorEvents();
   bindEvents();
@@ -234,7 +236,10 @@ function bindEvents() {
   dom.calNext?.addEventListener('click', () => { state.calendarDate.setMonth(state.calendarDate.getMonth() + 1); renderCalendar(); });
 
   // Editor (Book UI)
-  dom.editorBack?.addEventListener('click', closeBookEditor);
+  dom.editorBack?.addEventListener('click', () => {
+    closeTodoDetailPanel();
+    closeBookEditor();
+  });
   dom.editorSave?.addEventListener('click', () => {
     saveEntries();
     showToast('Diary saved!');

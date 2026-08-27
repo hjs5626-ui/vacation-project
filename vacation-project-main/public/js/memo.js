@@ -4835,7 +4835,7 @@ export function bindMemoWidgetEvents(el) {
   const openSelector = '.memo-preview-open, .memo-preview-body';
 
   root.addEventListener('click', (e) => {
-    if (e.target.closest('.widget-delete')) return;
+    if (e.target.closest('.widget-delete, .widget-thumbnail-edit')) return;
 
     if (e.target.closest(openSelector)) {
       e.stopPropagation();

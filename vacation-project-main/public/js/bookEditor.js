@@ -5,6 +5,7 @@ import { savePageToStorage } from './storageBox.js';
 import { openDrawer } from './drawer.js';
 import { updateGridDimensionsFromContainer, buildLegoGrid } from './grid.js';
 import { rerenderPlacedWidgets } from './widgets.js';
+import { closeTodoDetailPanel } from './todo.js';
 
 function ensurePageWidgets(pageData) {
   if (!pageData) return [];
@@ -38,6 +39,7 @@ export function openBookEditor(diary) {
 }
 
 export function closeBookEditor() {
+  closeTodoDetailPanel();
   state.currentDiary = null;
   dom.editorPage.classList.remove('active');
   dom.mainPage.classList.add('active');

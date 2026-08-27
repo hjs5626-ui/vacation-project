@@ -6,10 +6,34 @@ import { state, saveEntries } from './state.js';
 import { dom } from './dom.js';
 import { showToast } from './utils.js';
 import { checkPlacement, markCellsOccupied, freeCells, clearCellHighlights, buildLegoGrid, reserveMapArea } from './grid.js';
-import { buildTodoWidgetShell, ensureTodoWidgetData, bindTodoWidgetEvents, refreshTodoTabs, openTodoResizeSheet } from './todo.js';
+import { buildTodoWidgetShell, ensureTodoWidgetData, bindTodoWidgetEvents, refreshTodoTabs, openTodoResizeSheet, closeTodoDetailPanel } from './todo.js';
 import { mountLedgerWidget } from './ledger.js';
 import { deleteLedgerWidget } from './api.js';
 import { buildMemoWidgetShell, ensureMemoWidgetData, bindMemoWidgetEvents, renderMemoPreview } from './memo.js';
+import { attachWidgetThumbnailChrome } from './thumbnailEditor.js';
+
+
+function syncWidgetsToCurrentPage() {
+  const page = state.currentDiary?.pages?.[state.currentSpreadIndex ?? 0];
+  if (!page) return;
+  if (!Array.isArray(page.widgets)) page.widgets = [];
+  state.widgets.forEach((w) => {
+    const idx = page.widgets.findIndex((existing) => existing.id === w.id);
+    if (idx >= 0) page.widgets[idx] = w;
+    else page.widgets.push(w);
+  });
+}
+
+
+function removeWidgetFromDiary(widgetId) {
+  const pages = state.currentDiary?.pages;
+  if (!Array.isArray(pages)) return;
+  pages.forEach((page) => {
+    if (!Array.isArray(page?.widgets)) return;
+    const i = page.widgets.findIndex((x) => x.id === widgetId);
+    if (i >= 0) page.widgets.splice(i, 1);
+  });
+}
 
 
 /* ── Place Widget ────────────────────────────────────── */
@@ -36,13 +60,14 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
 
   if (type === 'todo') {
     if (state.movingWidget) {
-      widgetData.groups = state.movingWidget.groups ?? [];
+      ensureTodoWidgetData(state.movingWidget);
+      widgetData.groups = JSON.parse(JSON.stringify(state.movingWidget.groups ?? []));
       widgetData.activeTab = state.movingWidget.activeTab ?? 'all';
-      widgetData.tasks = state.movingWidget.tasks ?? [];
+      widgetData.todoSchemaVersion = state.movingWidget.todoSchemaVersion ?? 2;
     } else {
       widgetData.groups = [];
       widgetData.activeTab = 'all';
-      widgetData.tasks = [];
+      widgetData.todoSchemaVersion = 2;
     }
   } else if (type === 'memo') {
     if (state.movingWidget) {
@@ -50,6 +75,10 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
     } else {
       widgetData.content = '';
     }
+  }
+
+  if (state.movingWidget?.thumbnail) {
+    widgetData.thumbnail = JSON.parse(JSON.stringify(state.movingWidget.thumbnail));
   }
 
   markCellsOccupied(row, col, wCols, wRows, widgetId);
@@ -65,6 +94,7 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
   }
 
   exitPlacementMode();
+  syncWidgetsToCurrentPage();
   saveEntries();
 }
 
@@ -138,8 +168,9 @@ export function renderPlacedWidget(w) {
   const DRAG_CANCEL_PX = 8;
 
   const shouldSkipPressStart = (target) => {
-    if (target.closest('button, input, textarea, .ledger-body, .cat-menu')) return true;
+    if (target.closest('button, input, textarea, .ledger-body, .cat-menu, .widget-thumbnail-edit')) return true;
     if (w.type === 'todo' && target.closest('.todo-widget-header')) return true;
+    if (w.type === 'todo' && target.closest('[data-action="toggle-task"]')) return true;
     if (w.type === 'memo' && target.closest('.memo-widget-header')) return true;
     return false;
   };
@@ -148,7 +179,10 @@ export function renderPlacedWidget(w) {
   const startPress = (clientX, clientY) => {
     pressStartX = clientX;
     pressStartY = clientY;
-    pressTimer = setTimeout(() => pickupWidget(w), 500);
+    pressTimer = setTimeout(() => {
+      el.dataset.suppressTodoClick = '1';
+      pickupWidget(w);
+    }, 500);
   };
 
   const trackPressMove = (clientX, clientY) => {
@@ -240,6 +274,8 @@ export function renderPlacedWidget(w) {
   handle?.addEventListener('mousedown', startResize);
   handle?.addEventListener('touchstart', startResize, { passive: false });
 
+  attachWidgetThumbnailChrome(el, w);
+
   // Entrance animation
   el.style.opacity = '0';
   el.style.transform = 'scale(0.8)';
@@ -258,7 +294,14 @@ export function renderPlacedWidget(w) {
 export function removeWidget(widgetId) {
   freeCells(widgetId);
 
-  state.widgets = state.widgets.filter((w) => w.id !== widgetId);
+  const removed = state.widgets.find((w) => w.id === widgetId);
+  if (removed?.type === 'todo') {
+    closeTodoDetailPanel();
+  }
+
+  const idx = state.widgets.findIndex((w) => w.id === widgetId);
+  if (idx >= 0) state.widgets.splice(idx, 1);
+  removeWidgetFromDiary(widgetId);
 
   const el = dom.legoGrid.querySelector(`.placed-widget[data-widget-id="${widgetId}"]`);
   if (el) {
@@ -268,11 +311,11 @@ export function removeWidget(widgetId) {
     setTimeout(() => el.remove(), 150);
   }
 
-  const removed = state.widgets.find((w) => w.id === widgetId);
   if (removed?.type === 'ledger' && state.currentDiary?.id) {
     deleteLedgerWidget(state.currentDiary.id, widgetId).catch(() => {});
   }
 
+  saveEntries();
   showToast('Widget removed');
 }
 
@@ -308,6 +351,8 @@ export function resizeTodoWidget(widgetId, newCols, newRows) {
   if (el) el.remove();
 
   renderPlacedWidget(w);
+  syncWidgetsToCurrentPage();
+  saveEntries();
   return true;
 }
 
@@ -315,7 +360,8 @@ export function resizeTodoWidget(widgetId, newCols, newRows) {
 /* ── Pickup Widget (Move) ────────────────────────────── */
 export function pickupWidget(w) {
   freeCells(w.id);
-  state.widgets = state.widgets.filter((x) => x.id !== w.id);
+  const idx = state.widgets.findIndex((x) => x.id === w.id);
+  if (idx >= 0) state.widgets.splice(idx, 1);
   const el = dom.legoGrid.querySelector(`.placed-widget[data-widget-id="${w.id}"]`);
   if (el) el.remove();
 

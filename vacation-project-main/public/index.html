@@ -7,9 +7,10 @@
   <meta name="description" content="A beautiful grid-based diary app with LEGO-style widget placement, glassmorphism UI, and rich media support." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Inter:wght@300;400;500;600;700;800;900&family=Nanum+Pen+Script&family=Noto+Sans+KR:wght@400;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/budget.css" />
+  <link rel="stylesheet" href="css/thumbnail-editor.css" />
 </head>
 <body>
 
@@ -541,6 +542,19 @@
 
 
   <!-- ═══════════════════════════════════════════════ -->
+  <!--  TO-DO DETAIL MODAL                             -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="todo-modal-overlay hidden" id="todo-modal-overlay">
+    <div class="todo-modal glass-panel" id="todo-modal" role="dialog" aria-modal="true" aria-labelledby="todo-modal-title">
+      <header class="todo-modal-header">
+        <h2 class="todo-modal-title" id="todo-modal-title">To-Do</h2>
+        <button type="button" class="todo-modal-close" id="todo-modal-close" aria-label="닫기">✕</button>
+      </header>
+      <div class="todo-modal-body" id="todo-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
   <!--  TO-DO COMPOSE SHEET (Bottom Sheet)             -->
   <!-- ═══════════════════════════════════════════════ -->
   <div class="todo-compose-overlay hidden" id="todo-compose-overlay">
@@ -645,6 +659,45 @@
       <div class="app-dialog-actions">
         <button type="button" class="btn-secondary app-dialog-btn" id="app-confirm-cancel">취소</button>
         <button type="button" class="btn-primary app-dialog-btn" id="app-confirm-ok">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-dialog-overlay hidden" id="app-input-overlay">
+    <div class="app-dialog-panel app-dialog-panel--input glass-panel" id="app-input-panel" role="dialog" aria-modal="true">
+      <h3 class="app-dialog-title" id="app-input-title"></h3>
+      <input type="text" class="app-dialog-input" id="app-input-field" autocomplete="off" />
+      <p class="app-dialog-error" id="app-input-error" aria-live="polite"></p>
+      <div class="app-dialog-actions">
+        <button type="button" class="btn-secondary app-dialog-btn" id="app-input-cancel">취소</button>
+        <button type="button" class="btn-primary app-dialog-btn" id="app-input-confirm">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-dialog-overlay hidden" id="app-choice-overlay">
+    <div class="app-dialog-panel app-dialog-panel--choice glass-panel" id="app-choice-panel" role="dialog" aria-modal="true">
+      <h3 class="app-dialog-title" id="app-choice-title"></h3>
+      <p class="app-dialog-message" id="app-choice-message"></p>
+      <div class="app-dialog-choice-list" id="app-choice-list"></div>
+      <div class="app-dialog-actions">
+        <button type="button" class="btn-secondary app-dialog-btn" id="app-choice-cancel">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-dialog-overlay hidden" id="app-color-overlay">
+    <div class="app-dialog-panel app-dialog-panel--color glass-panel" id="app-color-panel" role="dialog" aria-modal="true">
+      <h3 class="app-dialog-title" id="app-color-title">색상 변경</h3>
+      <div class="app-color-palette" id="app-color-palette"></div>
+      <div class="app-color-custom-row">
+        <button type="button" class="app-color-custom-btn" id="app-color-custom-btn">직접 선택</button>
+        <input type="color" class="app-color-native-input hidden" id="app-color-native-input" value="#FF8FB1" />
+        <span class="app-color-preview" id="app-color-preview" aria-hidden="true"></span>
+      </div>
+      <div class="app-dialog-actions">
+        <button type="button" class="btn-secondary app-dialog-btn" id="app-color-cancel">취소</button>
+        <button type="button" class="btn-primary app-dialog-btn" id="app-color-apply">적용</button>
       </div>
     </div>
   </div>
