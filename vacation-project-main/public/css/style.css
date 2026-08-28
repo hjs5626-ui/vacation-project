@@ -257,7 +257,7 @@ body::before {
   cursor: pointer;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  transition: all 0.2s var(--ease-out);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .hero-edit-btn:hover {
   background: rgba(255,255,255,0.85);
@@ -319,7 +319,7 @@ body::before {
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s var(--ease-out);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .blog-tool-btn:hover {
   background: var(--bg-glass-hover);
@@ -339,7 +339,7 @@ body::before {
   align-items: center;
   justify-content: center;
   box-shadow: 0 3px 16px rgba(255, 154, 158, 0.35);
-  transition: all 0.2s var(--ease-spring);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .blog-add-btn:hover {
   transform: scale(1.12) rotate(90deg);
@@ -435,7 +435,7 @@ body::before {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.15s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .pe-back:hover { background: var(--bg-glass-hover); color: var(--text-primary); }
 .pe-back svg { width: 20px; height: 20px; }
@@ -556,7 +556,7 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.25s var(--ease-out);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
   box-shadow: var(--shadow-sm);
 }
 .btn-icon:hover {
@@ -580,7 +580,7 @@ body::before {
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 20px rgba(255, 154, 158, 0.4);
-  transition: all 0.15s var(--ease-spring);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .btn-add-main:hover {
   transform: scale(1.1) rotate(90deg);
@@ -598,7 +598,7 @@ body::before {
   padding: 12px 8px;
   cursor: pointer;
   border-radius: var(--radius-md);
-  transition: all 0.25s var(--ease-out);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
   user-select: none;
 }
 
@@ -701,7 +701,7 @@ body::before {
   border-radius: 6px;
   cursor: pointer;
   font-size: 1rem;
-  transition: all 0.2s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .cal-nav:hover { background: rgba(0,0,0,0.06); color: var(--text-primary); }
 
@@ -736,7 +736,7 @@ body::before {
   border-radius: 6px;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .cal-day:hover { background: rgba(255, 154, 158, 0.2); }
@@ -813,7 +813,7 @@ body::before {
   border-radius: 50%;
   cursor: pointer;
   font-size: 0.85rem;
-  transition: all 0.2s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .modal-close:hover { background: rgba(0,0,0,0.08); color: var(--text-primary); }
 
@@ -862,7 +862,7 @@ body::before {
   align-items: center;
   gap: 12px;
   text-align: center;
-  transition: all 0.35s var(--ease-spring);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
   color: var(--text-primary);
   box-shadow: var(--shadow-sm);
 }
@@ -905,7 +905,7 @@ body::before {
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
-  transition: all 0.25s var(--ease-spring);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .color-swatch:hover { transform: scale(1.15); }
@@ -924,7 +924,7 @@ body::before {
   color: var(--text-primary);
   font-size: 0.9rem;
   font-family: inherit;
-  transition: all 0.25s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
   outline: none;
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
 }
@@ -957,7 +957,7 @@ body::before {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: all 0.25s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .vis-btn:hover { background: rgba(255,255,255,0.5); }
@@ -980,7 +980,7 @@ body::before {
   font-family: inherit;
   cursor: pointer;
   box-shadow: 0 4px 20px rgba(255, 154, 158, 0.4);
-  transition: all 0.15s var(--ease-spring);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
   margin-top: 8px;
 }
 
@@ -999,7 +999,7 @@ body::before {
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.25s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .btn-secondary:hover {
@@ -1046,7 +1046,7 @@ body::before {
   font-family: inherit;
   cursor: pointer;
   box-shadow: 0 2px 12px rgba(255, 154, 158, 0.3);
-  transition: all 0.15s var(--ease-spring);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .btn-save:hover {
@@ -1116,7 +1116,7 @@ body::before {
   font-size: 0.7rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .font-size-btn:hover { background: rgba(255,255,255,0.7); color: var(--text-primary); }
 
@@ -1171,7 +1171,7 @@ body::before {
   border-radius: 4px;
   position: relative;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
   background: transparent;
   border: 1px solid rgba(0, 0, 0, 0.03);
 }
@@ -1188,7 +1188,7 @@ body::before {
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.06);
-  transition: all 0.2s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .grid-cell:hover::after {
@@ -1850,7 +1850,7 @@ body::before {
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .btn-cancel-placement:hover { background: rgba(0,0,0,0.1); }
 
@@ -1870,7 +1870,7 @@ body::before {
   cursor: pointer;
   z-index: 8;
   box-shadow: 0 6px 28px rgba(255, 154, 158, 0.45);
-  transition: all 0.15s var(--ease-spring);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3138,7 +3138,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   font-size: 0.6rem;
   font-family: inherit;
   font-weight: 600;
-  transition: all 0.25s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .drawer-tab:hover { color: var(--text-secondary); background: rgba(255,255,255,0.4); }
@@ -3196,7 +3196,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   font-size: 1.4rem;
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 0.25s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3279,7 +3279,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   border: 1.5px solid rgba(255, 154, 158, 0.5);
   background: transparent;
   cursor: pointer;
-  transition: all 0.25s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
   padding: 0;
 }
 
@@ -3398,7 +3398,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   font-weight: 500;
   color: var(--text-primary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .context-menu button svg {
@@ -3436,7 +3436,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   box-shadow: var(--shadow-lg);
   z-index: 300;
   opacity: 0;
-  transition: all 0.15s var(--ease-out);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
   pointer-events: none;
 }
 
@@ -3554,7 +3554,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   justify-content: center;
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  transition: all 0.2s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
   z-index: 10;
 }
 .book-nav-btn:hover:not(:disabled) {
@@ -3670,13 +3670,13 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   font-size: 1.1rem;
   cursor: pointer;
   box-shadow: 0 4px 10px rgba(139,92,246,0.3);
-  transition: all 0.2s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .btn-import { background: rgba(0,0,0,0.1); color: #333; box-shadow: none; }
 .btn-create-new:hover, .btn-import:hover { transform: translateY(-2px); }
 .btn-create-new.huge {
   font-size: 4rem; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  background: transparent; color: rgba(0,0,0,0.2); border: 2px dashed rgba(0,0,0,0.2); box-shadow: none; transition: all 0.2s;
+  background: transparent; color: rgba(0,0,0,0.2); border: 2px dashed rgba(0,0,0,0.2); box-shadow: none; transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .btn-create-new.huge:hover {
   background: rgba(0,0,0,0.05); color: rgba(0,0,0,0.4); border-color: rgba(0,0,0,0.4); transform: scale(1.05);
@@ -3712,7 +3712,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   padding: 5px 10px;
   border-radius: 5px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .btn-archive:hover { background: rgba(0,0,0,0.1); }
 
@@ -4788,7 +4788,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   opacity: 0;
   pointer-events: none;
   transform: translateY(20px);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .memo-home-fab-actions--open {
@@ -6027,3 +6027,14 @@ body.todo-reorder-active .todo-detail-task-item:hover {
     padding: 5px;
   }
 }
+. d r a g - c l o n e  
+   p o s i t i o n :   f i x e d   ! i m p o r t a n t ;   p o i n t e r - e v e n t s :   n o n e   ! i m p o r t a n t ;   z - i n d e x :   9 9 9 9 9   ! i m p o r t a n t ;   t r a n s i t i o n :   n o n e   ! i m p o r t a n t ;   m  
+ a r g i n :   0   ! i m p o r t a n t ;    
+ . d r a w e r  
+ . m o d a l - p a n e l  
+ . d i a l o g - p a n e l  
+ . e n t r y - i c o n  
+ . t o d o - g r o u p - i t e m  
+ . w i d g e t - b a s e  
+   t r a n s f o r m :   t r a n s l a t e Z ( 0 ) ;    
+ 
