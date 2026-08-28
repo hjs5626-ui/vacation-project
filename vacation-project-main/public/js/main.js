@@ -6,7 +6,7 @@ import { state } from './state.js';
 import { dom, $, $$ } from './dom.js';
 import { renderCalendar } from './calendar.js';
 import { renderEntries, toggleSort, initContextMenu } from './entries.js';
-import { buildSizeCarousel, buildTodoSizeCarousel, buildLedgerSizeCarousel, buildMemoSizeCarousel, navigateCarousel, navigateTodoCarousel, navigateLedgerCarousel, navigateMemoCarousel, openDrawer, closeDrawer, onChooseSize, onChooseTodoSize, onChooseLedgerSize, onChooseMemoSize, onImageSelected, onConfirmYes, onConfirmNo } from './drawer.js';
+import { buildSizeCarousel, buildTodoSizeCarousel, buildLedgerSizeCarousel, buildMemoSizeCarousel, navigateCarousel, navigateTodoCarousel, navigateLedgerCarousel, navigateMemoCarousel, openDrawer, closeDrawer, onChooseSize, onEditGallerySize, onCustomSizeApply, onCustomSizeCancel, onChooseTodoSize, onChooseLedgerSize, onChooseMemoSize, onImageSelected, onConfirmYes, onConfirmNo } from './drawer.js';
 import { openAddModal, closeAddModal, showModalStep, bindColorPicker, bindVisibilityOptions, createFile, createDiary } from './modals.js';
 import { bindLedgerDetailEvents } from './ledgerDetail.js';
 import { bindMemoFullscreenEvents } from './memo.js';
@@ -273,6 +273,9 @@ function bindEvents() {
 
   // Choose size
   dom.btnChooseSize?.addEventListener('click', onChooseSize);
+  dom.btnEditGallerySize?.addEventListener('click', onEditGallerySize);
+  dom.customSizeApply?.addEventListener('click', onCustomSizeApply);
+  dom.customSizeCancel?.addEventListener('click', onCustomSizeCancel);
   dom.btnChooseTodoSize?.addEventListener('click', onChooseTodoSize);
   dom.btnChooseLedger?.addEventListener('click', onChooseLedgerSize);
   dom.btnChooseMemo?.addEventListener('click', onChooseMemoSize);

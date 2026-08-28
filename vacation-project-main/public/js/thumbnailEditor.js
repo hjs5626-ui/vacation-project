@@ -233,7 +233,57 @@ function ensureOverlay() {
   overlay.id = 'thumbnail-editor-overlay';
   overlay.className = 'te-overlay hidden';
   overlay.innerHTML = `
+    <style>
+      /* 불필요한 꾸미기 도구들을 숨겨서 순수 크롭 툴로만 동작하게 만듭니다 */
+      .te-tools,
+      .te-inspector,
+      .te-draw-panel,
+      .te-sticker-panel,
+      .te-use-default,
+      .te-handle {
+        display: none !important;
+      }
+      .crop-zoom-controls {
+        position: absolute;
+        right: 24px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        z-index: 1000;
+      }
+      .crop-zoom-controls button {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        font-size: 24px;
+        font-weight: 300;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #333;
+        transition: transform 0.15s, background 0.15s;
+      }
+      .crop-zoom-controls button:hover {
+        transform: scale(1.05);
+        background: #fff;
+      }
+      .crop-zoom-controls button:active {
+        transform: scale(0.95);
+      }
+    </style>
     <button type="button" class="te-close" id="te-close" title="닫기">${ICONS.close}</button>
+    
+    <div class="crop-zoom-controls">
+      <button type="button" id="crop-zoom-in" title="확대">+</button>
+      <button type="button" id="crop-zoom-out" title="축소">-</button>
+    </div>
+
     <div class="te-tools">
       <button type="button" class="te-tool" data-te-tool="text" title="텍스트">${ICONS.text}</button>
       <button type="button" class="te-tool" data-te-tool="photo" title="사진">${ICONS.photo}</button>
@@ -282,6 +332,93 @@ function ensureOverlay() {
   emojiSearchEl = overlay.querySelector('#te-emoji-search');
 
   overlay.querySelector('#te-close').addEventListener('click', closeThumbnailEditor);
+  
+  overlay.querySelector('#crop-zoom-in').addEventListener('click', () => {
+    if (project && project.objects.length > 0) {
+      const obj = project.objects[0];
+      const scale = 1.1;
+      const oldW = obj.width;
+      const oldH = obj.height;
+      obj.width *= scale;
+      obj.height *= scale;
+      obj.x -= (obj.width - oldW) / 2;
+      obj.y -= (obj.height - oldH) / 2;
+      renderAll();
+    }
+  });
+
+  overlay.querySelector('#crop-zoom-out').addEventListener('click', () => {
+    if (project && project.objects.length > 0) {
+      const obj = project.objects[0];
+      const scale = 1 / 1.1;
+      const oldW = obj.width;
+      const oldH = obj.height;
+      obj.width *= scale;
+      obj.height *= scale;
+      obj.x -= (obj.width - oldW) / 2;
+      obj.y -= (obj.height - oldH) / 2;
+      renderAll();
+    }
+  });
+
+  workspace.addEventListener('wheel', (e) => {
+    if (project && project.objects.length > 0) {
+      e.preventDefault();
+      const obj = project.objects[0];
+      const scale = Math.exp(-e.deltaY * 0.002);
+      const oldW = obj.width;
+      const oldH = obj.height;
+      obj.width *= scale;
+      obj.height *= scale;
+      obj.x -= (obj.width - oldW) / 2;
+      obj.y -= (obj.height - oldH) / 2;
+      renderAll();
+    }
+  }, { passive: false });
+
+  let initialPinchDistance = null;
+  let initialPinchWidth = null;
+  let initialPinchHeight = null;
+  let initialPinchX = null;
+  let initialPinchY = null;
+
+  workspace.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2 && project && project.objects.length > 0) {
+      e.preventDefault();
+      dragSession = null;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      initialPinchDistance = Math.hypot(dx, dy);
+      const obj = project.objects[0];
+      initialPinchWidth = obj.width;
+      initialPinchHeight = obj.height;
+      initialPinchX = obj.x;
+      initialPinchY = obj.y;
+    }
+  }, { passive: false });
+
+  workspace.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && initialPinchDistance !== null && project && project.objects.length > 0) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const scale = dist / initialPinchDistance;
+      const obj = project.objects[0];
+      obj.width = initialPinchWidth * scale;
+      obj.height = initialPinchHeight * scale;
+      obj.x = initialPinchX - (obj.width - initialPinchWidth) / 2;
+      obj.y = initialPinchY - (obj.height - initialPinchHeight) / 2;
+      renderAll();
+    }
+  }, { passive: false });
+
+  workspace.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) {
+      initialPinchDistance = null;
+    }
+  });
+
   overlay.querySelector('#te-save').addEventListener('click', () => saveAndClose(true));
   overlay.querySelector('#te-use-default').addEventListener('click', () => saveAndClose(false));
   overlay.querySelectorAll('[data-te-tool]').forEach((btn) => {
@@ -340,6 +477,35 @@ export function openThumbnailEditor(widgetId) {
   tool = 'select';
   currentStroke = null;
   dragSession = null;
+
+  const isEmpty = project.objects.length === 0 && project.drawing.strokes.length === 0;
+  const baseImage = widget.thumbnail?.image || widget.imageData;
+  
+  if (isEmpty && baseImage) {
+    const img = new Image();
+    img.onload = () => {
+      const width = img.naturalWidth || size.width;
+      const height = img.naturalHeight || size.height;
+      const maxW = project.frameWidth;
+      const maxH = project.frameHeight;
+      const scale = Math.max(maxW / width, maxH / height);
+      const w = width * scale;
+      const h = height * scale;
+      project.objects.push({
+        id: genId('img'),
+        type: 'image',
+        x: (project.frameWidth - w) / 2,
+        y: (project.frameHeight - h) / 2,
+        width: w,
+        height: h,
+        rotation: 0,
+        zIndex: nextZ(),
+        src: baseImage
+      });
+      renderAll();
+    };
+    img.src = baseImage;
+  }
 
   overlay.classList.remove('hidden');
   layoutStage();
@@ -802,11 +968,10 @@ async function onPhotoChosen(e) {
   if (!file) return;
   try {
     const { src, width, height } = await readImageFile(file);
-    const maxW = project.frameWidth * 0.85;
-    const maxH = project.frameHeight * 0.85;
-    const scale = Math.min(maxW / width, maxH / height, 1);
-    const w = Math.max(MIN_OBJECT_SIZE, width * scale);
-    const h = Math.max(MIN_OBJECT_SIZE, height * scale);
+    // Scale the image to COVER the frame so the user can pan to specify which part to show
+    const scale = Math.max(project.frameWidth / width, project.frameHeight / height);
+    const w = width * scale;
+    const h = height * scale;
     const obj = {
       id: genId('img'),
       type: 'image',

@@ -101,6 +101,7 @@ export const dom = {
   carouselNext: $('#carousel-next'),
   carouselDots: $('#carousel-dots'),
   btnChooseSize: $('#btn-choose-size'),
+  btnEditGallerySize: $('#btn-edit-gallery-size'),
 
   // To-Do carousel
   todoCarouselViewport: $('#todo-carousel-viewport'),
@@ -159,6 +160,14 @@ export const dom = {
   confirmImage: $('#confirm-image'),
   confirmYes: $('#confirm-yes'),
   confirmNo: $('#confirm-no'),
+
+  // Custom Size Modal
+  customSizeOverlay: $('#custom-size-overlay'),
+  customSizeWarning: $('#custom-size-warning'),
+  customSizeW: $('#custom-size-w'),
+  customSizeH: $('#custom-size-h'),
+  customSizeApply: $('#custom-size-apply'),
+  customSizeCancel: $('#custom-size-cancel'),
 
   // File input
   fileInputHidden: $('#file-input-hidden'),

@@ -286,6 +286,93 @@ export function onChooseSize() {
   }, 250);
 }
 
+export function onEditGallerySize() {
+  // 실시간으로 남은 칸(최대 연속 빈칸) 계산
+  let maxW = 0;
+  let maxH = 0;
+  const rows = state.gridRows || 20;
+  const cols = state.gridCols || 8;
+  const occupied = state.occupiedCells || {};
+
+  // 가장 긴 가로 빈 공간 찾기
+  for (let r = 0; r < rows; r++) {
+    let currentW = 0;
+    for (let c = 0; c < cols; c++) {
+      if (!occupied[`${r}-${c}`]) currentW++;
+      else {
+        if (currentW > maxW) maxW = currentW;
+        currentW = 0;
+      }
+    }
+    if (currentW > maxW) maxW = currentW;
+  }
+
+  // 가장 긴 세로 빈 공간 찾기
+  for (let c = 0; c < cols; c++) {
+    let currentH = 0;
+    for (let r = 0; r < rows; r++) {
+      if (!occupied[`${r}-${c}`]) currentH++;
+      else {
+        if (currentH > maxH) maxH = currentH;
+        currentH = 0;
+      }
+    }
+    if (currentH > maxH) maxH = currentH;
+  }
+
+  if (maxW === 0) maxW = 1;
+  if (maxH === 0) maxH = 1;
+
+  dom.customSizeOverlay.dataset.maxW = maxW;
+  dom.customSizeOverlay.dataset.maxH = maxH;
+
+  dom.customSizeWarning.textContent = `현재 배치 가능한 최대 가로는 ${maxW}칸, 세로는 ${maxH}칸입니다.`;
+  dom.customSizeWarning.style.color = '#e53935'; // 빨간색 글씨
+  
+  dom.customSizeW.max = maxW;
+  dom.customSizeH.max = maxH;
+  dom.customSizeW.value = Math.min(2, maxW).toString();
+  dom.customSizeH.value = Math.min(2, maxH).toString();
+  
+  dom.customSizeOverlay.classList.remove('hidden');
+  requestAnimationFrame(() => dom.customSizeOverlay.classList.add('active'));
+}
+
+export function onCustomSizeApply() {
+  const maxW = parseInt(dom.customSizeOverlay.dataset.maxW || state.gridCols || 8, 10);
+  const maxH = parseInt(dom.customSizeOverlay.dataset.maxH || 20, 10);
+  
+  const w = parseInt(dom.customSizeW.value, 10);
+  const h = parseInt(dom.customSizeH.value, 10);
+
+  if (isNaN(w) || isNaN(h) || w < 1 || h < 1) {
+    alert("올바른 숫자를 입력해주세요.");
+    return;
+  }
+
+  if (w > maxW || h > maxH) {
+    alert(`입력하신 크기가 빈 공간보다 큽니다!\n현재 가로는 최대 ${maxW}칸, 세로는 최대 ${maxH}칸까지만 가능합니다.`);
+    return;
+  }
+
+  // Valid size
+  dom.customSizeOverlay.classList.remove('active');
+  setTimeout(() => dom.customSizeOverlay.classList.add('hidden'), 150);
+
+  state.placementSize = { cols: w, rows: h };
+  closeDrawer();
+  
+  setTimeout(() => {
+    dom.fileInputHidden.value = '';
+    dom.fileInputHidden.click();
+  }, 250);
+}
+
+export function onCustomSizeCancel() {
+  dom.customSizeOverlay.classList.remove('active');
+  setTimeout(() => dom.customSizeOverlay.classList.add('hidden'), 150);
+}
+
 export function onImageSelected(e) {
   const file = e.target.files[0];
   if (!file) return;
