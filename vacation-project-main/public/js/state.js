@@ -5,6 +5,7 @@
 // --- Data Migration for backward compatibility ---
 function migrateEntries(entries) {
   if (!Array.isArray(entries)) return [];
+  const makeWidgetId = () => `w_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
   entries.forEach(entry => {
     // Migrate to nested folders
     if (entry.parentId === undefined) {
@@ -22,14 +23,21 @@ function migrateEntries(entries) {
       ];
       delete entry.widgets;
     }
-    if (Array.isArray(entry.pages)) {
+    if (entry.type === 'diary' && Array.isArray(entry.pages)) {
+      const seenWidgetIds = new Set();
       entry.pages.forEach((page) => {
         if (page && !Array.isArray(page.widgets)) {
           page.widgets = [];
         }
+        if (!page || !Array.isArray(page.widgets)) return;
+        page.widgets.forEach((widget) => {
+          if (!widget.id || seenWidgetIds.has(widget.id)) widget.id = makeWidgetId();
+          seenWidgetIds.add(widget.id);
+        });
       });
     }
   });
+  localStorage.setItem('memento_entries', JSON.stringify(entries));
   return entries;
 }
 
@@ -65,10 +73,9 @@ export const state = {
   ledgerCarouselIndex: 0,
   memoCarouselIndex: 0,
   ledgerSizes: [
-    { label: '6×5', subtitle: '가계부 — Compact', cols: 6, rows: 5 },
-    { label: '7×5', subtitle: '가계부 — Medium', cols: 7, rows: 5 },
-    { label: '8×5', subtitle: '가계부 — Wide', cols: 8, rows: 5 },
-    { label: '8×6', subtitle: '가계부 — Large', cols: 8, rows: 6 },
+    { label: '2×2', subtitle: 'Budget — Small', cols: 2, rows: 2 },
+    { label: '2×4', subtitle: 'Budget — Tall', cols: 2, rows: 4 },
+    { label: '4×4', subtitle: 'Budget — Large', cols: 4, rows: 4 },
   ],
   widgetSizes: [
     { label: '2×2', subtitle: 'Square — Small', cols: 2, rows: 2 },

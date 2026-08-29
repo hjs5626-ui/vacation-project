@@ -1,78 +1,127 @@
 /* ═══════════════════════════════════════════════════════════
-   MEMENTO DIARY — Ledger API Client (Mocked with localStorage)
+   MEMENTO DIARY — Ledger API Client (Backend 통신)
    ═══════════════════════════════════════════════════════════ */
 
-function getLedgers() {
+const API_BASE =
+  window.MEMENTO_API_BASE !== undefined
+    ? window.MEMENTO_API_BASE
+    : location.port === '3001'
+      ? ''
+      : 'http://localhost:3001';
+
+async function request(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    ...options,
+  });
+
+  let body = null;
   try {
-    const data = localStorage.getItem('memento_ledgers');
-    return data ? JSON.parse(data) : {};
+    body = await res.json();
   } catch {
-    return {};
+    body = null;
   }
+
+  if (!res.ok) {
+    const msg = (body && body.error) || `API error ${res.status}`;
+    throw new Error(msg);
+  }
+  return body;
 }
 
-function saveLedgers(data) {
-  try {
-    localStorage.setItem('memento_ledgers', JSON.stringify(data));
-  } catch (e) {
-    console.error("Failed to save ledgers to localStorage", e);
-  }
+const OFFLINE_QUEUE_KEY = 'memento_ledger_offline_queue';
+const ledgerCacheKey = (diaryId, widgetId) => `memento_ledger_cache_${diaryId}_${widgetId}`;
+const readCache = (diaryId, widgetId) => JSON.parse(localStorage.getItem(ledgerCacheKey(diaryId, widgetId)) || '[]');
+const writeCache = (diaryId, widgetId, items) => localStorage.setItem(ledgerCacheKey(diaryId, widgetId), JSON.stringify(items || []));
+const offlinePack = (items) => ({ items, offline: true });
+function enqueue(entry) {
+  const queue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+  queue.push(entry);
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
 }
 
-function getWidgetKey(diaryId, widgetId) {
-  return `${diaryId}_${widgetId}`;
+export async function flushLedgerOfflineQueue() {
+  const queue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+  if (!queue.length) return;
+  const remaining = [];
+  const idMap = {};
+  for (const entry of queue) {
+    try {
+      let path = entry.path;
+      Object.entries(idMap).forEach(([temp, real]) => { path = path.replace(encodeURIComponent(temp), encodeURIComponent(real)); });
+      const data = await request(path, { method: entry.method, body: entry.payload ? JSON.stringify(entry.payload) : undefined });
+      if (entry.tempId && data?.item?.id) idMap[entry.tempId] = data.item.id;
+    } catch { remaining.push(entry); }
+  }
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
 }
+
+window.addEventListener('online', () => flushLedgerOfflineQueue().catch(() => {}));
 
 export async function fetchLedgerItems(diaryId, widgetId) {
-  const ledgers = getLedgers();
-  const key = getWidgetKey(diaryId, widgetId);
-  return ledgers[key] || [];
+  try {
+    await flushLedgerOfflineQueue();
+    const data = await request(`/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}`);
+    writeCache(diaryId, widgetId, data.items);
+    return data;
+  } catch { return offlinePack(readCache(diaryId, widgetId)); }
+}
+
+export function fetchLedgerCategories(diaryId, widgetId) {
+  return request(`/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}/categories`);
+}
+
+export function saveLedgerCategories(diaryId, widgetId, categories) {
+  return request(`/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}/categories`, {
+    method: 'PUT',
+    body: JSON.stringify({ categories }),
+  });
+}
+
+export function fetchLedgerSettings(diaryId, widgetId) {
+  return request(`/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}/settings`);
+}
+
+export function saveLedgerSettings(diaryId, widgetId, settings) {
+  return request(`/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}/settings`, {
+    method: 'PUT', body: JSON.stringify(settings),
+  });
 }
 
 export async function createLedgerItem(diaryId, widgetId, payload) {
-  const ledgers = getLedgers();
-  const key = getWidgetKey(diaryId, widgetId);
-  if (!ledgers[key]) ledgers[key] = [];
-  
-  const newItem = {
-    ...payload,
-    id: `l_${Date.now()}_${Math.floor(Math.random()*1000)}`
-  };
-  
-  ledgers[key].push(newItem);
-  saveLedgers(ledgers);
-  return newItem;
+  const path = `/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}`;
+  try {
+    const data = await request(path, { method: 'POST', body: JSON.stringify(payload) });
+    writeCache(diaryId, widgetId, data.items); return data;
+  } catch {
+    const tempId = `offline_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+    const item = { ...payload, id: tempId, diaryId, widgetId, createdAt: new Date().toISOString() };
+    const items = [...readCache(diaryId, widgetId), item]; writeCache(diaryId, widgetId, items);
+    enqueue({ method: 'POST', path, payload, tempId }); return { item, ...offlinePack(items) };
+  }
 }
 
 export async function updateLedgerItem(diaryId, widgetId, itemId, payload) {
-  const ledgers = getLedgers();
-  const key = getWidgetKey(diaryId, widgetId);
-  if (!ledgers[key]) throw new Error("Widget not found");
-  
-  const idx = ledgers[key].findIndex(i => i.id === itemId);
-  if (idx === -1) throw new Error("Item not found");
-  
-  ledgers[key][idx] = { ...ledgers[key][idx], ...payload };
-  saveLedgers(ledgers);
-  return ledgers[key][idx];
+  const path = `/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}/${encodeURIComponent(itemId)}`;
+  try { const data = await request(path, { method: 'PUT', body: JSON.stringify(payload) }); writeCache(diaryId, widgetId, data.items); return data; }
+  catch {
+    const items = readCache(diaryId, widgetId).map((item) => item.id === itemId ? { ...item, ...payload } : item);
+    writeCache(diaryId, widgetId, items); enqueue({ method: 'PUT', path, payload }); return offlinePack(items);
+  }
 }
 
 export async function deleteLedgerItem(diaryId, widgetId, itemId) {
-  const ledgers = getLedgers();
-  const key = getWidgetKey(diaryId, widgetId);
-  if (ledgers[key]) {
-    ledgers[key] = ledgers[key].filter(i => i.id !== itemId);
-    saveLedgers(ledgers);
+  const path = `/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}/${encodeURIComponent(itemId)}`;
+  try { const data = await request(path, { method: 'DELETE' }); writeCache(diaryId, widgetId, data.items); return data; }
+  catch {
+    const items = readCache(diaryId, widgetId).filter((item) => item.id !== itemId);
+    writeCache(diaryId, widgetId, items); enqueue({ method: 'DELETE', path }); return offlinePack(items);
   }
-  return { success: true };
 }
 
-export async function deleteLedgerWidget(diaryId, widgetId) {
-  const ledgers = getLedgers();
-  const key = getWidgetKey(diaryId, widgetId);
-  if (ledgers[key]) {
-    delete ledgers[key];
-    saveLedgers(ledgers);
-  }
-  return { success: true };
+export function deleteLedgerWidget(diaryId, widgetId) {
+  return request(
+    `/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}`,
+    { method: 'DELETE' }
+  );
 }
