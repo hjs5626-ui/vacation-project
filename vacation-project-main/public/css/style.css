@@ -1,9 +1,9 @@
-/* ═══════════════════════════════════════════════════════════
-   MEMENTO DIARY — Design System & Styles
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
+   MEMENTO DIARY ??Design System & Styles
    Light / Apricot Canvas / Liquid Glass / LEGO Grid Theme
-   ═══════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 
-/* ── CSS Variables ───────────────────────────────────── */
+/* ?? CSS Variables ????????????????????????????????????? */
 :root {
   /* Colors - Apricot Canvas */
   --bg-deep: #FDF4F0;
@@ -56,7 +56,7 @@
   --todo-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-/* ── Reset & Base ────────────────────────────────────── */
+/* ?? Reset & Base ?????????????????????????????????????? */
 *, *::before, *::after {
   margin: 0;
   padding: 0;
@@ -98,7 +98,7 @@ body::before {
 }
 ::-webkit-scrollbar-thumb:hover { background: rgba(44, 44, 53, 0.3); }
 
-/* ── Utilities ───────────────────────────────────────── */
+/* ?? Utilities ????????????????????????????????????????? */
 .hidden { display: none !important; }
 
 .glass-panel {
@@ -110,7 +110,7 @@ body::before {
   box-shadow: var(--shadow-glass);
 }
 
-/* ── Screen Management ───────────────────────────────── */
+/* ?? Screen Management ????????????????????????????????? */
 .screen {
   position: fixed;
   inset: 0;
@@ -128,11 +128,11 @@ body::before {
   transform: scale(1);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   MAIN PAGE — Blog Style
-   ═══════════════════════════════════════════════════════════ */
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
+   MAIN PAGE ??Blog Style
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 
-/* ── Main Hero ───────────────────────────────────────── */
+/* ?? Main Hero ????????????????????????????????????????? */
 .main-hero {
   height: 28vh;
   min-height: 180px;
@@ -267,7 +267,7 @@ body::before {
 }
 .hero-edit-btn svg { width: 16px; height: 16px; }
 
-/* ── Main Body (Content Area) ────────────────────────── */
+/* ?? Main Body (Content Area) ?????????????????????????? */
 .main-body {
   flex: 1;
   display: flex;
@@ -275,7 +275,7 @@ body::before {
   gap: 0;
 }
 
-/* ── Blog Content (Left) ─────────────────────────────── */
+/* ?? Blog Content (Left) ??????????????????????????????? */
 .blog-content {
   flex: 1;
   display: flex;
@@ -354,7 +354,7 @@ body::before {
   letter-spacing: 0.3px;
 }
 
-/* ── Entries Grid ────────────────────────────────────── */
+/* ?? Entries Grid ?????????????????????????????????????? */
 .entries-grid-wrap {
   flex: 1;
   overflow-y: auto;
@@ -369,7 +369,7 @@ body::before {
   min-height: 100%;
 }
 
-/* ── Blog Sidebar (Right) ────────────────────────────── */
+/* ?? Blog Sidebar (Right) ?????????????????????????????? */
 .blog-sidebar {
   width: clamp(220px, 22vw, 300px);
   flex-shrink: 0;
@@ -396,7 +396,7 @@ body::before {
   color: var(--text-primary);
 }
 
-/* ── Profile Editor Page ──────────────────────────── */
+/* ?? Profile Editor Page ???????????????????????????? */
 .profile-editor-page-body {
   flex: 1;
   overflow-y: auto;
@@ -662,7 +662,7 @@ body::before {
 
 .empty-state p { font-size: 0.85rem; }
 
-/* ── Sidebar ─────────────────────────────────────────── */
+/* ?? Sidebar ??????????????????????????????????????????? */
 .main-sidebar {
   flex: 0 0 20%;
   display: flex;
@@ -763,9 +763,9 @@ body::before {
 .map-placeholder svg { width: 48px; height: 48px; }
 
 
-/* ═══════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    ADD MODAL
-   ═══════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1008,9 +1008,9 @@ body::before {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    EDITOR PAGE
-   ═══════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 .editor-header {
   height: 8%;
   display: flex;
@@ -1176,7 +1176,7 @@ body::before {
   border: 1px solid rgba(0, 0, 0, 0.03);
 }
 
-/* Subtle grid dot — replaces trypophobia-triggering studs */
+/* Subtle grid dot ??replaces trypophobia-triggering studs */
 .grid-cell::after {
   content: '';
   position: absolute;
@@ -1420,7 +1420,7 @@ body::before {
   transform: scale(1.08);
 }
 
-/* Medium widgets (cols 3): 3×2, 3×3, 3×4 */
+/* Medium widgets (cols 3): 3횞2, 3횞3, 3횞4 */
 .placed-widget--todo[data-widget-cols="3"] .todo-widget-header {
   gap: 3px;
   padding: 6px 32px 5px 6px;
@@ -1449,7 +1449,7 @@ body::before {
   font-size: 0.55rem;
 }
 
-/* Small widgets (cols 2): 2×2, 2×3 */
+/* Small widgets (cols 2): 2횞2, 2횞3 */
 .placed-widget--todo[data-widget-cols="2"] .todo-widget-header {
   gap: 2px;
   padding: 4px 30px 3px 4px;
@@ -1717,7 +1717,7 @@ body::before {
 }
 
 .placed-widget--todo .todo-task-check--done::before {
-  content: '✓';
+  content: '??;
 }
 
 .placed-widget--todo .todo-task-title {
@@ -1884,9 +1884,9 @@ body::before {
 .fab span { line-height: 1; margin-top: -2px; }
 
 
-/* ═══════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    WIDGET DRAWER (Bottom Sheet)
-   ═══════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 .drawer-overlay {
   position: fixed;
   inset: 0;
@@ -1921,12 +1921,12 @@ body::before {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    TO-DO COMPOSE SHEET (Bottom Sheet)
-   ═══════════════════════════════════════════════════════════ */
-/* ═══════════════════════════════════════════════════════════
-   TO-DO DETAIL MODAL — Apple × Notion × Pink
-   ═══════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
+   TO-DO DETAIL MODAL ??Apple 횞 Notion 횞 Pink
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 .todo-modal-overlay {
   --todo-pink: #FF8FB1;
   --todo-pink-light: #FFD6E4;
@@ -2698,7 +2698,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
 }
 
 .todo-detail-task-check--done::before {
-  content: '✓';
+  content: '??;
 }
 
 .todo-detail-task-title {
@@ -2933,9 +2933,9 @@ body.todo-reorder-active .todo-detail-task-item:hover {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    TO-DO GROUP RENAME MODAL
-   ═══════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 .todo-rename-overlay {
   position: fixed;
   inset: 0;
@@ -3000,9 +3000,9 @@ body.todo-reorder-active .todo-detail-task-item:hover {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    TO-DO RESIZE SHEET (Bottom Sheet)
-   ═══════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 .todo-resize-overlay {
   position: fixed;
   inset: 0;
@@ -3296,9 +3296,9 @@ body.todo-reorder-active .todo-detail-task-item:hover {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    CONFIRM DIALOG
-   ═══════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 .confirm-overlay {
   position: fixed;
   inset: 0;
@@ -3359,9 +3359,9 @@ body.todo-reorder-active .todo-detail-task-item:hover {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    CONTEXT MENU
-   ═══════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 .context-menu {
   position: fixed;
   z-index: 1000;
@@ -3418,9 +3418,9 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   background: rgba(239, 68, 68, 0.1);
 }
 
-/* ═══════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    TOAST
-   ═══════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 .toast {
   position: fixed;
   bottom: 120px;
@@ -3446,9 +3446,9 @@ body.todo-reorder-active .todo-detail-task-item:hover {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    ANIMATIONS
-   ═══════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -3483,9 +3483,9 @@ body.todo-reorder-active .todo-detail-task-item:hover {
 .entry-icon:nth-child(8) { animation-delay: 0.21s; }
 
 
-/* ═══════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    RESPONSIVE
-   ═══════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 @media (max-width: 900px) {
   .main-bottom { flex-direction: column; }
   .entries-grid-wrap { flex: 1; border-right: none; border-bottom: 1px solid var(--glass-border); }
@@ -3868,7 +3868,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   background: linear-gradient(135deg, transparent 50%, rgba(139,92,246,0.8) 50%);
 }
 
-/* ── Memo Fullscreen Overlay ── */
+/* ?? Memo Fullscreen Overlay ?? */
 .memo-fullscreen-overlay {
   position: fixed;
   inset: 0;
@@ -3939,7 +3939,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   flex-direction: column;
 }
 
-/* ── Memo Home ── */
+/* ?? Memo Home ?? */
 .memo-home {
   display: flex;
   flex-direction: column;
@@ -4022,7 +4022,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   color: #fff;
 }
 
-/* ── Memo Home Toolbar ── */
+/* ?? Memo Home Toolbar ?? */
 .memo-home-toolbar {
   display: flex;
   padding: 16px 24px;
@@ -4582,7 +4582,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   pointer-events: none;
 }
 
-/* ── Memo Home Search ── */
+/* ?? Memo Home Search ?? */
 .memo-home--search-open {
   display: flex;
   flex-direction: column;
@@ -4698,7 +4698,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
 }
 
-/* ── Memo Home Cards ── */
+/* ?? Memo Home Cards ?? */
 .memo-home-cards {
   padding: 16px 20px 80px;
   flex: 1;
@@ -4769,7 +4769,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   margin: 0;
 }
 
-/* ── Memo Home FAB ── */
+/* ?? Memo Home FAB ?? */
 .memo-home-fab {
   position: absolute;
   bottom: 24px;
@@ -4823,7 +4823,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   box-shadow: 0 8px 24px rgba(0,0,0,0.2) !important;
 }
 
-/* ── Memo Create Setup ── */
+/* ?? Memo Create Setup ?? */
 .memo-create-setup {
   display: flex;
   flex-direction: column;
@@ -4929,7 +4929,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   margin: 4px 0;
 }
 
-/* ── Memo Editor ── */
+/* ?? Memo Editor ?? */
 .memo-editor {
   display: flex;
   flex-direction: column;
@@ -5010,7 +5010,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   background: transparent;
 }
 
-/* ── Memo single page view (notebook) ───────────────── */
+/* ?? Memo single page view (notebook) ????????????????? */
 .memo-note-view {
   display: flex;
   flex-direction: column;
@@ -5256,14 +5256,14 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   overflow: hidden;
 }
 
-/* ── Memo sheet design tokens (editor + read view) ── */
+/* ?? Memo sheet design tokens (editor + read view) ?? */
 .memo-fullscreen-body--page-editor,
 .memo-fullscreen-body--create-setup {
   --memo-sheet-max-width: min(720px, calc(100% - 32px));
   --memo-editor-content-height: clamp(280px, 42vh, 440px);
 }
 
-/* ── Memo page editor ── */
+/* ?? Memo page editor ?? */
 .memo-fullscreen-body--page-editor {
   padding: 0;
   overflow: hidden;
@@ -5780,7 +5780,7 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   white-space: nowrap;
 }
 
-/* Hidden measure root — mirrors editor content box height */
+/* Hidden measure root ??mirrors editor content box height */
 .memo-sheet-measure {
   position: absolute;
   visibility: hidden;
@@ -5818,7 +5818,202 @@ body.todo-reorder-active .todo-detail-task-item:hover {
   max-height: calc(var(--memo-editor-content-height) + 48px);
 }
 
-/* ── Template popup (속지 선택) ── */
+/* ?? Template popup (?띿? ?좏깮) ?? */
+.memo-template-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.memo-template-popup[hidden] {
+  display: none !important;
+}
+
+.memo-template-popup-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+.memo-template-popup-dialog {
+  position: relative;
+  z-index: 1;
+  z-index: 4;
+}
+
+.memo-editor-session-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  position: relative;
+  pointer-events: auto;
+}
+
+.memo-editor-session-prev,
+.memo-editor-session-next {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-primary, #333);
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+
+.memo-editor-session-prev:hover:not(:disabled),
+.memo-editor-session-next:hover:not(:disabled) {
+  border-color: rgba(139, 92, 246, 0.45);
+  color: var(--accent-1, #8b5cf6);
+}
+
+.memo-editor-session-prev:disabled,
+.memo-editor-session-next:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.memo-editor-session-indicator {
+  min-width: 4.5rem;
+  font-size: 0.875rem;
+  color: rgba(0, 0, 0, 0.55);
+  letter-spacing: 0.02em;
+}
+
+.memo-sheet-overflow-measure {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+  left: 0;
+  top: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.memo-text-page-continue {
+  padding: 8px 16px;
+  border: 1px solid rgba(236, 72, 153, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--accent-pink, #ec4899);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.memo-text-page-continue:hover {
+  background: rgba(236, 72, 153, 0.06);
+}
+
+.memo-text-page-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 10px 12px 14px;
+  max-width: var(--memo-sheet-max-width);
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.55);
+  position: relative;
+  z-index: 3;
+}
+
+.memo-text-page-tool {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 52px;
+  padding: 6px 4px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary, #666);
+  font-size: 0.625rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.memo-text-page-tool:hover {
+  background: rgba(139, 92, 246, 0.08);
+  color: var(--text-primary, #333);
+}
+
+.memo-text-page-tool--edge {
+  margin-left: auto;
+}
+
+.memo-text-page-tool-icon {
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.memo-text-page-tool-label {
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* Hidden measure root ??mirrors editor content box height */
+.memo-sheet-measure {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  width: calc(var(--memo-sheet-max-width) - 56px);
+  max-width: calc(100% - 56px);
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  z-index: -1;
+  left: 0;
+  top: 0;
+}
+
+.memo-sheet-measure-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin-bottom: 12px;
+}
+
+.memo-sheet-measure-content {
+  height: var(--memo-editor-content-height);
+  min-height: var(--memo-editor-content-height);
+  max-height: var(--memo-editor-content-height);
+  overflow: hidden;
+  font-size: 1rem;
+  line-height: 1.65;
+  box-sizing: border-box;
+}
+
+.memo-sheet-measure-content--continuation {
+  height: calc(var(--memo-editor-content-height) + 48px);
+  min-height: calc(var(--memo-editor-content-height) + 48px);
+  max-height: calc(var(--memo-editor-content-height) + 48px);
+}
+
+/* ?? Template popup (?띿? ?좏깮) ?? */
 .memo-template-popup {
   position: fixed;
   inset: 0;
@@ -6027,14 +6222,236 @@ body.todo-reorder-active .todo-detail-task-item:hover {
     padding: 5px;
   }
 }
-. d r a g - c l o n e  
-   p o s i t i o n :   f i x e d   ! i m p o r t a n t ;   p o i n t e r - e v e n t s :   n o n e   ! i m p o r t a n t ;   z - i n d e x :   9 9 9 9 9   ! i m p o r t a n t ;   t r a n s i t i o n :   n o n e   ! i m p o r t a n t ;   m  
- a r g i n :   0   ! i m p o r t a n t ;    
- . d r a w e r  
- . m o d a l - p a n e l  
- . d i a l o g - p a n e l  
- . e n t r y - i c o n  
- . t o d o - g r o u p - i t e m  
- . w i d g e t - b a s e  
-   t r a n s f o r m :   t r a n s l a t e Z ( 0 ) ;    
+. d r a g - c l o n e 
  
+   p o s i t i o n :   f i x e d   ! i m p o r t a n t ;   p o i n t e r - e v e n t s :   n o n e   ! i m p o r t a n t ;   z - i n d e x :   9 9 9 9 9   ! i m p o r t a n t ;   t r a n s i t i o n :   n o n e   ! i m p o r t a n t ;   m 
+ 
+ a r g i n :   0   ! i m p o r t a n t ;   
+ 
+ . d r a w e r 
+ 
+ . m o d a l - p a n e l 
+ 
+ . d i a l o g - p a n e l 
+ 
+ . e n t r y - i c o n 
+ 
+ . t o d o - g r o u p - i t e m 
+ 
+ . w i d g e t - b a s e 
+ 
+   t r a n s f o r m :   t r a n s l a t e Z ( 0 ) ;   
+ 
+ /* ???????????????????????????????????????????????????????????
+   PERSONALIZED MAP (LEAFLET)
+   ??????????????????????????????????????????????????????????? */
+.page-map-container {
+  position: relative;
+  height: 260px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 12px;
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border: 1px solid rgba(255,255,255,0.5);
+  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  z-index: 9900;
+}
+.page-map-container.expanded { height: 420px; }
+
+.diary-map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  position: relative;
+  z-index: 1000;
+}
+.diary-map-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #333;
+}
+.diary-map-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.btn-map-action {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 1.1rem;
+  transition: background 0.2s;
+}
+.btn-map-action:hover { background: rgba(0,0,0,0.05); }
+
+.map-style-dropdown-wrap { position: relative; }
+.map-style-dropdown {
+  position: absolute;
+  top: 100%; right: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 2000;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 2000;
+  min-width: 120px;
+}
+.map-style-dropdown.hidden { display: none; }
+.style-opt {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  text-align: left;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+.style-opt:hover { background: rgba(0,0,0,0.05); }
+.style-opt.active { background: rgba(139,92,246,0.1); color: #8b5cf6; font-weight: bold; }
+
+.diary-map-search {
+  position: absolute;
+  top: 50px; left: 12px; right: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.diary-map-search.hidden { display: none; }
+.map-search-input {
+  width: 100%;
+  padding: 8px 30px 8px 12px;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 6px;
+  background: #f9f9f9;
+  font-size: 0.9rem;
+}
+.btn-map-close-search {
+  position: absolute;
+  top: 14px; right: 16px;
+  background: transparent; border: none; cursor: pointer; color: #888;
+}
+.map-search-results { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.search-result-item {
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.search-result-item:hover { background: rgba(0,0,0,0.05); }
+.res-name { font-weight: 600; font-size: 0.85rem; }
+.res-addr { font-size: 0.75rem; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.no-result { padding: 10px; font-size: 0.85rem; color: #888; text-align: center; }
+
+.diary-map-canvas {
+  width: 100%;
+  height: calc(100% - 42px);
+  z-index: 1;
+  position: relative;
+}
+
+/* Custom Marker */
+.custom-leaflet-icon { background: transparent; border: none; }
+.custom-map-pin {
+  position: relative;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pin-pulse {
+  position: absolute; width: 100%; height: 100%;
+  background: var(--pin-color, #ec4899);
+  border-radius: 50%; opacity: 0.3;
+  animation: map-pulse 2s infinite;
+}
+.pin-emoji {
+  position: relative; z-index: 2;
+  width: 32px; height: 32px;
+  background: white;
+  border: 2px solid var(--pin-color, #ec4899);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+.pin-badge {
+  position: absolute; top: -5px; right: -5px; z-index: 3;
+  background: var(--pin-color, #ec4899); color: white;
+  font-size: 0.7rem; font-weight: bold; width: 18px; height: 18px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+@keyframes map-pulse {
+  0% { transform: scale(0.9); opacity: 0.5; }
+  70% { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(0.9); opacity: 0; }
+}
+
+/* Map Popup */
+.leaflet-popup-content-wrapper {
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  padding: 0;
+}
+.leaflet-popup-content { margin: 12px; }
+.custom-map-popup { display: flex; flex-direction: column; gap: 6px; }
+.popup-title { font-weight: bold; font-size: 1rem; color: #333; }
+.popup-note { font-size: 0.85rem; color: #666; font-style: italic; background: rgba(0,0,0,0.03); padding: 6px; border-radius: 6px; }
+.popup-addr { font-size: 0.75rem; color: #999; }
+.popup-actions { display: flex; gap: 8px; margin-top: 6px; }
+.btn-popup {
+  flex: 1; padding: 4px; border: none; border-radius: 4px;
+  font-size: 0.75rem; cursor: pointer; transition: background 0.2s;
+}
+.edit-btn { background: #f0fdf4; color: #166534; }
+.edit-btn:hover { background: #dcfce7; }
+.delete-btn { background: #fef2f2; color: #991b1b; }
+.delete-btn:hover { background: #fee2e2; }
+
+/* Map Location Editor Modal */
+.map-loc-panel {
+  width: 320px;
+  padding: 20px;
+}
+.emoji-picker-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+  max-height: 120px; overflow-y: auto; padding-right: 4px;
+}
+.emoji-opt {
+  background: transparent; border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 6px; padding: 6px 0; font-size: 1.2rem; cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+}
+.emoji-opt:hover { background: rgba(0,0,0,0.05); }
+.emoji-opt.active { background: rgba(139,92,246,0.15); border-color: #8b5cf6; transform: scale(1.1); }
+
+.color-picker-flex { display: flex; flex-wrap: wrap; gap: 8px; }
+.color-opt {
+  width: 28px; height: 28px; border-radius: 50%; border: 2px solid white;
+  cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: transform 0.2s;
+}
+.color-opt.active { transform: scale(1.2); box-shadow: 0 0 0 2px #333; }
