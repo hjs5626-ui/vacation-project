@@ -10,6 +10,8 @@ import {
   createLedgerItem,
   updateLedgerItem,
   deleteLedgerItem,
+  fetchLedgerCategories,
+  saveLedgerCategories,
 } from './api.js';
 
 const CAT_COLORS = [
@@ -19,6 +21,15 @@ const CAT_COLORS = [
   { bg: 'rgba(16, 185, 129, 0.18)', text: '#047857' },
   { bg: 'rgba(245, 158, 11, 0.22)', text: '#b45309' },
   { bg: 'rgba(244, 63, 94, 0.16)', text: '#be123c' },
+];
+
+const DEFAULT_CATEGORIES = [
+  '식비', '교통', '숙박', '관광', '쇼핑', '예약', '기타',
+];
+
+const LEGACY_DEFAULT_CATEGORIES = [
+  '식비', '교통', '쇼핑', '주거·공과금', '여가',
+  '의료', '교육', '급여', '용돈', '생활', '고정비', '수입', '기타',
 ];
 
 export function formatWon(n) {
@@ -55,11 +66,24 @@ function catStorageKey() {
   return `memento_categories_${diaryId() || 'global'}`;
 }
 
+function catVersionKey() {
+  return `${catStorageKey()}_version`;
+}
+
 export function loadCategories() {
   try {
-    return JSON.parse(localStorage.getItem(catStorageKey()) || '[]');
+    let saved = JSON.parse(localStorage.getItem(catStorageKey()) || '[]');
+    saved = Array.isArray(saved) ? saved : [];
+    if (localStorage.getItem(catVersionKey()) !== '2') {
+      saved = saved.filter((name) =>
+        !LEGACY_DEFAULT_CATEGORIES.includes(name) || DEFAULT_CATEGORIES.includes(name)
+      );
+      localStorage.setItem(catStorageKey(), JSON.stringify(saved));
+      localStorage.setItem(catVersionKey(), '2');
+    }
+    return [...new Set([...DEFAULT_CATEGORIES, ...saved])];
   } catch {
-    return [];
+    return [...DEFAULT_CATEGORIES];
   }
 }
 
@@ -73,8 +97,25 @@ export function rememberCategory(name) {
   const trimmed = String(name || '').trim();
   if (!trimmed) return loadCategories();
   const list = loadCategories();
-  if (!list.includes(trimmed)) list.push(trimmed);
-  return saveCategories(list);
+  if (list.includes(trimmed)) return list;
+  list.push(trimmed);
+  const saved = saveCategories(list);
+  if (diaryId()) saveLedgerCategories(diaryId(), 'shared', saved).catch(() => {});
+  return saved;
+}
+
+export async function syncCategories(widgetId) {
+  if (!diaryId()) return loadCategories();
+  const local = loadCategories();
+  try {
+    const data = await fetchLedgerCategories(diaryId(), widgetId || 'shared');
+    const merged = [...new Set([...DEFAULT_CATEGORIES, ...local, ...(data.categories || [])])];
+    saveCategories(merged);
+    const saved = await saveLedgerCategories(diaryId(), widgetId || 'shared', merged);
+    return saveCategories(saved.categories || merged);
+  } catch {
+    return local;
+  }
 }
 
 export function colorFor(name) {
@@ -114,9 +155,9 @@ export function mountCategorySelect(wrap, initialValue, onCommit, widgetId) {
   menu.className = 'cat-menu';
   menu.dataset.ledgerWidget = widgetId || '';
   menu.innerHTML = `
-    <input class="cat-search" type="text" placeholder="카테고리 검색 또는 생성…" />
+    <input class="cat-search" type="text" placeholder="검색하거나 직접 추가" />
     <div class="cat-options"></div>
-    <div class="cat-hint">Enter로 새 카테고리 생성</div>
+    <div class="cat-hint">원하는 항목이 없으면 입력 후 Enter</div>
   `;
   document.body.appendChild(menu);
 
@@ -186,7 +227,7 @@ export function mountCategorySelect(wrap, initialValue, onCommit, widgetId) {
 
   function positionMenu() {
     const rect = trigger.getBoundingClientRect();
-    const menuWidth = Math.max(rect.width, 168);
+    const menuWidth = Math.max(rect.width, 240);
     let left = rect.left;
     let top = rect.bottom + 4;
     if (left + menuWidth > window.innerWidth - 8) left = window.innerWidth - menuWidth - 8;
@@ -249,13 +290,20 @@ export function mountLedgerWidget(container, widget) {
     <button class="widget-delete" title="Remove widget">✕</button>
     <div class="ledger-sheet">
       <div class="ledger-title-row">
-        <button type="button" class="ledger-title" data-open-ledger-detail title="상세 가계부 보기">가계부</button>
+        <button type="button" class="ledger-title" data-open-ledger-detail title="상세 가계부 보기">
+          <span class="ledger-title-mark">₩</span>
+          <span class="ledger-title-copy">
+            <strong>${escapeHTML(widget.budgetName || 'Budget')}</strong>
+            <small>My daily balance</small>
+          </span>
+          <span class="ledger-title-arrow">›</span>
+        </button>
       </div>
       <div class="ledger-headers">
         <div class="ledger-h ledger-h-date">날짜</div>
         <div class="ledger-h ledger-h-content">내용</div>
         <div class="ledger-h ledger-h-category">카테고리</div>
-        <div class="ledger-h ledger-h-price">가격</div>
+        <div class="ledger-h ledger-h-price">금액</div>
         <div class="ledger-h-spacer"></div>
       </div>
       <div class="ledger-body">
@@ -265,7 +313,7 @@ export function mountLedgerWidget(container, widget) {
         </button>
       </div>
       <div class="ledger-footer">
-        <span class="ledger-total-label">합계</span>
+        <span class="ledger-total-label">Balance</span>
         <span class="ledger-total-value" data-ledger-total>0원</span>
       </div>
     </div>
@@ -294,6 +342,7 @@ export function mountLedgerWidget(container, widget) {
       content: row.querySelector('[data-field="content"]').value,
       category: row._catApi?.getValue() || '',
       price: Number(row.querySelector('[data-field="price"]').value) || 0,
+      amountSource: 'krw',
       kind: itemKind(existing),
     };
     if (payload.category) rememberCategory(payload.category);
@@ -388,6 +437,7 @@ export function mountLedgerWidget(container, widget) {
         category: '',
         price: 0,
         kind: 'expense',
+        amountSource: 'krw',
       });
       items = data.items;
       setTotalFromItems(items);
@@ -406,7 +456,7 @@ export function mountLedgerWidget(container, widget) {
     if (e.target.closest('input, button, .cat-select')) e.stopPropagation();
   }, { passive: true });
 
-  container.querySelector('.ledger-title-row')?.addEventListener('click', async (e) => {
+  container.querySelector('[data-open-ledger-detail]')?.addEventListener('click', async (e) => {
     e.stopPropagation();
     const { openLedgerDetail } = await import('./ledgerDetail.js');
     openLedgerDetail(widget);

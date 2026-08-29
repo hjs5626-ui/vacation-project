@@ -35,10 +35,15 @@ function removeWidgetFromDiary(widgetId) {
   });
 }
 
+function createWidgetId() {
+  if (globalThis.crypto?.randomUUID) return `w_${globalThis.crypto.randomUUID()}`;
+  return `w_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 
 /* ── Place Widget ────────────────────────────────────── */
 export function placeWidget(row, col, wCols, wRows, imageData) {
-  let widgetId = `w_${state.widgetIdCounter++}`;
+  let widgetId = createWidgetId();
   let type = 'gallery';
 
   if (state.movingWidget) {
@@ -51,6 +56,7 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
   const widgetData = {
     id: widgetId,
     type,
+    createdAt: state.movingWidget?.createdAt || new Date().toISOString(),
     row: Number(row),
     col: Number(col),
     cols: Number(wCols),
@@ -292,9 +298,12 @@ export function renderPlacedWidget(w) {
 
 /* ── Remove Widget ───────────────────────────────────── */
 export function removeWidget(widgetId) {
-  freeCells(widgetId);
-
   const removed = state.widgets.find((w) => w.id === widgetId);
+  if (removed?.type === 'ledger') {
+    const name = removed.budgetName || 'Budget';
+    if (!window.confirm(`“${name}” 위젯과 저장된 모든 거래를 삭제할까요?`)) return;
+  }
+  freeCells(widgetId);
   if (removed?.type === 'todo') {
     closeTodoDetailPanel();
   }
@@ -372,7 +381,7 @@ export function pickupWidget(w) {
 
 /* ── Restore Widget (from saved data) ────────────────── */
 export function restoreWidget(w) {
-  const widgetId = `w_${state.widgetIdCounter++}`;
+  const widgetId = w.id || createWidgetId();
   const widgetData = { ...w, id: widgetId };
 
   if (checkPlacement(w.row, w.col, w.cols, w.rows)) {
