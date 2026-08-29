@@ -291,12 +291,9 @@ export function mountLedgerWidget(container, widget) {
     <div class="ledger-sheet">
       <div class="ledger-title-row">
         <button type="button" class="ledger-title" data-open-ledger-detail title="상세 가계부 보기">
-          <span class="ledger-title-mark">₩</span>
           <span class="ledger-title-copy">
             <strong>${escapeHTML(widget.budgetName || 'Budget')}</strong>
-            <small>My daily balance</small>
           </span>
-          <span class="ledger-title-arrow">›</span>
         </button>
       </div>
       <div class="ledger-headers">
