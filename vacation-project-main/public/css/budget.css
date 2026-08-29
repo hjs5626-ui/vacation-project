@@ -3839,6 +3839,18 @@ body::before {
 #ledger-page .trip-setting-field.travelers { grid-column: span 2; }
 #ledger-page .trip-setting-field label { color: #916f66; font-size: .59rem; font-weight: 700; }
 #ledger-page .trip-rate-field small { color: #a98a82; font-size: .52rem; line-height: 1.35; }
+#ledger-page .trip-rate-display {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid rgba(202, 93, 139, 0.2);
+  border-radius: 9px;
+  color: #8f3f64;
+  font-size: .7rem;
+  font-weight: 750;
+  background: rgba(255, 241, 247, .88);
+}
 #ledger-page .trip-setting-field input,
 #ledger-page .trip-setting-field select {
   min-width: 0; width: 100%; padding: 8px; border: 1px solid rgba(148,99,87,.11); border-radius: 9px;

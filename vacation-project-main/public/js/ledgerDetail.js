@@ -45,6 +45,7 @@ let bound = false;
 let dirty = false;
 let summaryCursor = new Date(); // month shown in summary card
 let travelSettings = {};
+let pendingExchangeRate = null;
 
 function diaryId() {
   return state.currentDiary?.id;
@@ -137,9 +138,70 @@ function fillTripSettingsForm() {
     '#trip-start': travelSettings.tripStart || '',
     '#trip-end': travelSettings.tripEnd || '',
     '#trip-budget': travelSettings.tripBudget || '',
+    '#trip-local-currency': travelSettings.localCurrency || 'KRW',
     '#trip-travelers': (travelSettings.travelers || []).join(', '),
   };
   Object.entries(values).forEach(([selector, value]) => { const el = $(selector); if (el) el.value = value; });
+  const rateDisplay = $('#trip-rate-display');
+  const currency = travelSettings.localCurrency || 'KRW';
+  const rate = Number(travelSettings.krwToLocalRate) || (currency === 'KRW' ? 1 : 0);
+  if (rateDisplay) {
+    rateDisplay.dataset.rate = String(rate);
+    rateDisplay.dataset.rateDate = travelSettings.exchangeRateDate || '';
+    rateDisplay.textContent = formatLocalUnitInWon(rate, currency);
+  }
+  const status = $('#trip-rate-status');
+  if (status) status.textContent = travelSettings.exchangeRateDate
+    ? `${travelSettings.exchangeRateDate} 기준 · 거래 입력은 원화 기준입니다`
+    : '통화를 선택하면 현재 환율을 조회합니다';
+}
+
+const CURRENCY_UNIT_NAMES = {
+  KRW: '원', JPY: '엔', CNY: '위안', USD: '달러', EUR: '유로', GBP: '파운드',
+  THB: '바트', VND: '동', TWD: '대만 달러', HKD: '홍콩 달러',
+  SGD: '싱가포르 달러', AUD: '호주 달러', CAD: '캐나다 달러',
+};
+
+function formatLocalUnitInWon(krwToLocalRate, currency) {
+  const rate = Number(krwToLocalRate) || 0;
+  if (!rate) return '현재 환율을 조회해주세요';
+  const won = 1 / rate;
+  const maximumFractionDigits = won < 1 ? 4 : 2;
+  const formattedWon = new Intl.NumberFormat('ko-KR', { maximumFractionDigits }).format(won);
+  return `1${CURRENCY_UNIT_NAMES[currency] || currency} ≈ ${formattedWon}원`;
+}
+
+async function loadCurrentExchangeRate(currency = $('#trip-local-currency')?.value || 'KRW') {
+  const display = $('#trip-rate-display');
+  const status = $('#trip-rate-status');
+  if (!display) return null;
+  if (currency === 'KRW') {
+    display.dataset.rate = '1';
+    display.dataset.rateDate = todayISO();
+    display.textContent = '1원 = 1원';
+    if (status) status.textContent = '대한민국 원화 · 거래 입력은 원화 기준입니다';
+    return { rate: 1, date: display.dataset.rateDate };
+  }
+  display.textContent = '현재 환율 조회 중…';
+  if (status) status.textContent = '환율 정보를 불러오고 있습니다';
+  try {
+    const response = await fetch(`https://api.frankfurter.dev/v2/rate/KRW/${encodeURIComponent(currency)}`);
+    if (!response.ok) throw new Error(`환율 조회 실패 (${response.status})`);
+    const data = await response.json();
+    const rate = Number(data.rate);
+    if (!Number.isFinite(rate) || rate <= 0) throw new Error('올바르지 않은 환율');
+    display.dataset.rate = String(rate);
+    display.dataset.rateDate = String(data.date || todayISO());
+    display.textContent = formatLocalUnitInWon(rate, currency);
+    if (status) status.textContent = `${display.dataset.rateDate} 기준 · 거래 입력은 원화 기준입니다`;
+    return { rate, date: display.dataset.rateDate };
+  } catch {
+    display.dataset.rate = '0';
+    display.dataset.rateDate = '';
+    display.textContent = '환율을 불러오지 못했습니다';
+    if (status) status.textContent = '인터넷 연결 후 통화를 다시 선택해주세요';
+    return null;
+  }
 }
 
 async function syncTripBudgetIncome(settings) {
@@ -168,15 +230,18 @@ async function syncTripBudgetIncome(settings) {
 
 async function persistTravelSettings() {
   if (!currentWidget) return;
+  if (pendingExchangeRate) await pendingExchangeRate;
+  const rateDisplay = $('#trip-rate-display');
   const next = {
     tripStart: $('#trip-start')?.value || '',
     tripEnd: $('#trip-end')?.value || '',
     tripBudget: Number($('#trip-budget')?.value) || 0,
     baseCurrency: 'KRW',
-    localCurrency: 'KRW',
+    localCurrency: $('#trip-local-currency')?.value || 'KRW',
     exchangeRate: 1,
-    exchangeRateDate: '',
-    exchangeRateSource: '',
+    exchangeRateDate: rateDisplay?.dataset.rateDate || '',
+    exchangeRateSource: 'Frankfurter',
+    krwToLocalRate: Number(rateDisplay?.dataset.rate) || 0,
     travelers: String($('#trip-travelers')?.value || '').split(',').map((name) => name.trim()).filter(Boolean),
   };
   if (next.tripStart && next.tripEnd && next.tripStart > next.tripEnd) [next.tripStart, next.tripEnd] = [next.tripEnd, next.tripStart];
@@ -757,7 +822,14 @@ export function bindLedgerDetailEvents() {
   });
   $('#ledger-trip-settings')?.addEventListener('click', () => {
     fillTripSettingsForm();
-    $('#trip-settings-panel')?.classList.toggle('hidden');
+    const panel = $('#trip-settings-panel');
+    panel?.classList.toggle('hidden');
+    if (panel && !panel.classList.contains('hidden')) {
+      pendingExchangeRate = loadCurrentExchangeRate().finally(() => { pendingExchangeRate = null; });
+    }
+  });
+  $('#trip-local-currency')?.addEventListener('change', (e) => {
+    pendingExchangeRate = loadCurrentExchangeRate(e.target.value).finally(() => { pendingExchangeRate = null; });
   });
   $('#trip-settings-save')?.addEventListener('click', persistTravelSettings);
   $$('[data-kind-filter]').forEach((button) => {

@@ -113,6 +113,7 @@ module.exports = {
       exchangeRate: Math.max(0, Number(settings.exchangeRate) || 1),
       exchangeRateDate: String(settings.exchangeRateDate || ''),
       exchangeRateSource: String(settings.exchangeRateSource || ''),
+      krwToLocalRate: Math.max(0, Number(settings.krwToLocalRate) || 0),
       travelers: cleanTravelers,
     };
     writeSettings(data);
