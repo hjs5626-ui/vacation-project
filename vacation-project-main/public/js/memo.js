@@ -22,6 +22,13 @@ import { collectMemoImageIdsFromHtml, deleteMemoImageBlob, loadMemoImageIntoElem
 import { applyPhotoMeasureHints } from './memo-sheet-overflow.js';
 import { reflowEditorSessionSheets } from './memo-session-reflow.js';
 import {
+  closeMemoPagesPanel,
+  isMemoPagesPanelOpen,
+  openMemoPagesPanel,
+  reorderMemoPages,
+  resolveCurrentPageIdAfterDelete,
+} from './memo-pages-panel.js';
+import {
   appendContinuationSheetAtEnd,
   ensureEditorSessionFromDraft,
   filterSavableSessionSheets,
@@ -119,10 +126,9 @@ let templateCarouselIndex = 0;
 /** widgetId → { insertPosition, selectedTemplateId } */
 const createSetupSheetDrafts = new Map();
 
-/** createSetup·바인더에서 표시 중인 다이어리(memo) id */
+/** createSetup·읽기 화면에서 표시 중인 다이어리(memo) id */
 let currentDiaryId = null;
 let currentPageId = null;
-let isPageTurning = false;
 
 const pageEditorDrafts = new Map();
 const pageEditorBaselines = new Map();
@@ -420,6 +426,106 @@ function renderMemoPageContentIntoElement(el, content) {
 }
 
 
+function renderMemoPageThumbnailPreview(page, container) {
+  if (!container || !page) return;
+
+  const isContinuation = isPageContinuation(page);
+  const shell = document.createElement('div');
+  shell.className = 'memo-pages-thumb-sheet';
+  if (isContinuation) {
+    shell.classList.add('memo-pages-thumb-sheet--continuation');
+  }
+
+  if (!isContinuation) {
+    const dateEl = document.createElement('p');
+    dateEl.className = 'memo-pages-thumb-date';
+    dateEl.textContent = formatPageDateDisplay(page.date) || '\u00a0';
+
+    const titleEl = document.createElement('p');
+    titleEl.className = 'memo-pages-thumb-title';
+    titleEl.textContent = page.title || '제목 없음';
+
+    shell.append(dateEl, titleEl);
+  }
+
+  const contentEl = document.createElement('div');
+  contentEl.className = 'memo-pages-thumb-content memo-sheet-read-content';
+  if (isContinuation) {
+    contentEl.classList.add('memo-pages-thumb-content--continuation');
+  }
+  renderMemoPageContentIntoElement(contentEl, page.content);
+  shell.appendChild(contentEl);
+  container.appendChild(shell);
+}
+
+
+function persistMemoPagesChange(w, memo) {
+  if (!w || !memo) return;
+  memo.updatedAt = new Date().toISOString();
+  syncMemoWidgetToEntry(w);
+  saveEntries();
+  refreshMemoPreview(w.id);
+}
+
+
+function openMemoPagesOverlay(w) {
+  const memo = getActiveCreateSetupMemo(w);
+  if (!memo) return;
+
+  closeMemoNoteMenu();
+
+  openMemoPagesPanel({
+    mount: dom.memoFullscreenOverlay,
+    getMemo: () => getActiveCreateSetupMemo(w),
+    getCurrentPageId: () => currentPageId,
+    renderPageThumbnail: renderMemoPageThumbnailPreview,
+    setupReadImages: (container) => setupMemoReadModeImages(container),
+    onNavigate: (pageId) => {
+      currentPageId = pageId;
+      closeMemoPagesPanel();
+      refreshMemoSinglePageView(w);
+    },
+    onReorder: (movedPageId, targetIndex) => {
+      const activeMemo = getActiveCreateSetupMemo(w);
+      if (!activeMemo) return;
+      if (!reorderMemoPages(activeMemo, movedPageId, targetIndex)) return;
+      persistMemoPagesChange(w, activeMemo);
+    },
+    onDelete: async (pageIds) => {
+      const activeMemo = getActiveCreateSetupMemo(w);
+      if (!activeMemo || !pageIds.length) return false;
+
+      const ok = await openConfirmDialog({
+        title: '페이지 삭제',
+        message:
+          pageIds.length === 1
+            ? '선택한 페이지를 삭제할까요?'
+            : `선택한 ${pageIds.length}개의 페이지를 삭제할까요?`,
+        confirmLabel: '삭제',
+        cancelLabel: '취소',
+        danger: true,
+      });
+      if (!ok) return false;
+
+      const beforePages = [...(activeMemo.pages ?? [])];
+      const deletedIds = new Set(pageIds);
+      activeMemo.pages = beforePages.filter((p) => !deletedIds.has(p.id));
+      currentPageId = resolveCurrentPageIdAfterDelete(
+        beforePages,
+        activeMemo.pages,
+        currentPageId,
+        deletedIds
+      );
+      persistMemoPagesChange(w, activeMemo);
+      return true;
+    },
+    onReadViewRefresh: () => {
+      refreshMemoSinglePageView(w);
+    },
+  });
+}
+
+
 function openTemplatePopup() {
   isTemplatePopupOpen = true;
   selectedInsertPosition = 'after-current';
@@ -687,77 +793,6 @@ function formatPageCategoryDisplay(category) {
 }
 
 
-function computeBinderSpread(pages, pageId) {
-  if (!pages?.length) {
-    return {
-      leftPage: null,
-      rightPage: null,
-      spreadIndex: 0,
-      spreadCount: 0,
-      leftPageNumber: null,
-      rightPageNumber: null,
-    };
-  }
-
-  let idx = pageId ? pages.findIndex((p) => p.id === pageId) : 0;
-  if (idx < 0) idx = 0;
-
-  let spreadIndex = 0;
-  let leftPage = null;
-  let rightPage = null;
-
-  if (idx === 0) {
-    spreadIndex = 0;
-    rightPage = pages[0];
-  } else {
-    spreadIndex = Math.floor((idx - 1) / 2) + 1;
-    leftPage = pages[spreadIndex * 2 - 1] ?? null;
-    rightPage = pages[spreadIndex * 2] ?? null;
-  }
-
-  const spreadCount = pages.length <= 1 ? 1 : 1 + Math.ceil((pages.length - 1) / 2);
-
-  const pageNumber = (page) => {
-    if (!page) return null;
-    const i = pages.findIndex((p) => p.id === page.id);
-    return i >= 0 ? i + 1 : null;
-  };
-
-  return {
-    leftPage,
-    rightPage,
-    spreadIndex,
-    spreadCount,
-    leftPageNumber: pageNumber(leftPage),
-    rightPageNumber: pageNumber(rightPage),
-  };
-}
-
-
-function getTargetPageIdForSpread(pages, targetSpreadIndex) {
-  if (!pages.length) return null;
-  if (targetSpreadIndex <= 0) return pages[0].id;
-  const leftIdx = targetSpreadIndex * 2 - 1;
-  return pages[leftIdx]?.id ?? pages[0].id;
-}
-
-
-function prefersReducedMotion() {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-
-function setBinderNavDisabled(root, disabled) {
-  const nav =
-    root?.closest('.memo-binder-stage')?.querySelector('.memo-binder-nav')
-    ?? root?.closest('.memo-create-setup-stage')?.querySelector('.memo-binder-nav');
-  if (!nav) return;
-  nav.querySelectorAll('.memo-binder-nav-prev, .memo-binder-nav-next').forEach((btn) => {
-    btn.disabled = disabled;
-  });
-}
-
-
 function resolveCurrentPageIdForDiary(memo) {
   if (!memo?.pages?.length) {
     currentPageId = null;
@@ -784,290 +819,6 @@ function openMemoBinderForDiary(w, diaryId) {
   pageEditorBaselines.delete(w.id);
   fullscreenViewMode = 'createSetup';
   renderMemoFullscreen();
-}
-
-
-function buildBinderPageNav(memo) {
-  const nav = document.createElement('div');
-  nav.className = 'memo-binder-nav memo-page-controls';
-
-  const prevBtn = document.createElement('button');
-  prevBtn.type = 'button';
-  prevBtn.className = 'memo-binder-nav-prev';
-  prevBtn.textContent = '<';
-  prevBtn.setAttribute('aria-label', '이전 펼침');
-
-  const indicator = document.createElement('span');
-  indicator.className = 'memo-binder-nav-indicator';
-
-  const nextBtn = document.createElement('button');
-  nextBtn.type = 'button';
-  nextBtn.className = 'memo-binder-nav-next';
-  nextBtn.textContent = '>';
-  nextBtn.setAttribute('aria-label', '다음 펼침');
-
-  nav.append(prevBtn, indicator, nextBtn);
-  updateBinderPageNavState(nav, memo);
-  return nav;
-}
-
-
-function updateBinderPageNavState(navEl, memo) {
-  if (!navEl) return;
-
-  const pages = memo?.pages ?? [];
-  if (!pages.length) {
-    navEl.hidden = true;
-    return;
-  }
-
-  navEl.hidden = false;
-
-  const spread = computeBinderSpread(pages, currentPageId);
-  const indicator = navEl.querySelector('.memo-binder-nav-indicator');
-  const prevBtn = navEl.querySelector('.memo-binder-nav-prev');
-  const nextBtn = navEl.querySelector('.memo-binder-nav-next');
-
-  if (indicator) {
-    const { leftPageNumber, rightPageNumber } = spread;
-    if (leftPageNumber && rightPageNumber) {
-      indicator.textContent = `${leftPageNumber}–${rightPageNumber} / ${pages.length}`;
-    } else if (rightPageNumber) {
-      indicator.textContent = `${rightPageNumber} / ${pages.length}`;
-    } else if (leftPageNumber) {
-      indicator.textContent = `${leftPageNumber} / ${pages.length}`;
-    } else {
-      indicator.textContent = `— / ${pages.length}`;
-    }
-  }
-
-  const atFirstSpread = spread.spreadIndex <= 0;
-  const atLastSpread = spread.spreadIndex >= spread.spreadCount - 1;
-
-  if (prevBtn) prevBtn.disabled = atFirstSpread;
-  if (nextBtn) nextBtn.disabled = atLastSpread;
-}
-
-
-function renderBinderSheetSlot(slotEl, page, memo, options = {}) {
-  if (!slotEl) return;
-  slotEl.replaceChildren();
-
-  const { side = 'left', emptyMessage = null, showBlankSheet = false } = options;
-
-  if (!page) {
-    if (emptyMessage) {
-      const sheet = document.createElement('article');
-      sheet.className = 'memo-binder-sheet memo-binder-sheet--empty';
-      sheet.dataset.side = side;
-
-      const header = document.createElement('header');
-      header.className = 'memo-binder-sheet-header sheet-header';
-      const dateEl = document.createElement('p');
-      dateEl.className = 'memo-binder-sheet-date sheet-date';
-      dateEl.textContent = '\u00a0';
-      header.appendChild(dateEl);
-
-      const titleEl = document.createElement('h3');
-      titleEl.className = 'memo-binder-sheet-title sheet-title';
-      titleEl.textContent = '\u00a0';
-
-      const divider = document.createElement('hr');
-      divider.className = 'memo-binder-sheet-divider sheet-divider';
-      divider.setAttribute('aria-hidden', 'true');
-
-      const contentEl = document.createElement('div');
-      contentEl.className = 'memo-binder-sheet-content sheet-content';
-      const msg = document.createElement('p');
-      msg.className = 'memo-binder-sheet-empty-msg';
-      msg.textContent = emptyMessage;
-      contentEl.appendChild(msg);
-
-      const pageNumEl = document.createElement('p');
-      pageNumEl.className = 'memo-binder-sheet-page-number sheet-page-number';
-      pageNumEl.textContent = '\u00a0';
-
-      sheet.append(header, titleEl, divider, contentEl, pageNumEl);
-      slotEl.appendChild(sheet);
-    } else if (showBlankSheet) {
-      const sheet = document.createElement('article');
-      sheet.className = 'memo-binder-sheet memo-binder-sheet--blank';
-      sheet.dataset.side = side;
-      sheet.setAttribute('aria-hidden', 'true');
-      slotEl.appendChild(sheet);
-    }
-    return;
-  }
-
-  const sheet = document.createElement('article');
-  sheet.className = 'memo-binder-sheet';
-  sheet.dataset.pageId = page.id;
-  sheet.dataset.side = side;
-
-  const isContinuation = isPageContinuation(page);
-  if (isContinuation) {
-    sheet.classList.add('memo-binder-sheet--continuation');
-  }
-
-  const editBtn = document.createElement('button');
-  editBtn.type = 'button';
-  editBtn.className = 'memo-binder-page-edit';
-  editBtn.textContent = '편집';
-
-  const header = document.createElement('header');
-  header.className = 'memo-binder-sheet-header sheet-header';
-
-  const categoryText = formatPageCategoryDisplay(page.category);
-  if (categoryText) {
-    const categoryEl = document.createElement('p');
-    categoryEl.className = 'memo-binder-sheet-category sheet-category';
-    categoryEl.textContent = categoryText;
-    header.appendChild(categoryEl);
-  }
-
-  if (isContinuation) {
-    header.append(editBtn);
-  } else {
-    const dateEl = document.createElement('p');
-    dateEl.className = 'memo-binder-sheet-date sheet-date';
-    dateEl.textContent = formatPageDateDisplay(page.date);
-    header.append(dateEl, editBtn);
-
-    const titleEl = document.createElement('h3');
-    titleEl.className = 'memo-binder-sheet-title sheet-title';
-    titleEl.textContent = page.title || '제목 없음';
-
-    const divider = document.createElement('hr');
-    divider.className = 'memo-binder-sheet-divider sheet-divider';
-    divider.setAttribute('aria-hidden', 'true');
-
-    const contentEl = document.createElement('div');
-    contentEl.className = 'memo-binder-sheet-content sheet-content memo-sheet-read-content';
-    renderMemoPageContentIntoElement(contentEl, page.content);
-
-    const pageIndex = memo.pages.findIndex((p) => p.id === page.id);
-    const pageNumEl = document.createElement('p');
-    pageNumEl.className = 'memo-binder-sheet-page-number sheet-page-number';
-    pageNumEl.textContent = pageIndex >= 0 ? `${pageIndex + 1}` : '';
-
-    sheet.append(header, titleEl, divider, contentEl, pageNumEl);
-    slotEl.appendChild(sheet);
-    return;
-  }
-
-  const contentEl = document.createElement('div');
-  contentEl.className =
-    'memo-binder-sheet-content sheet-content memo-sheet-read-content memo-binder-sheet-content--continuation';
-  renderMemoPageContentIntoElement(contentEl, page.content);
-
-  const pageIndex = memo.pages.findIndex((p) => p.id === page.id);
-  const pageNumEl = document.createElement('p');
-  pageNumEl.className = 'memo-binder-sheet-page-number sheet-page-number';
-  pageNumEl.textContent = pageIndex >= 0 ? `${pageIndex + 1}` : '';
-
-  sheet.append(header, contentEl, pageNumEl);
-  slotEl.appendChild(sheet);
-}
-
-
-function refreshBinderSpreadView(w) {
-  const book = dom.memoFullscreenBody?.querySelector('.memo-binder-book');
-  if (!book) {
-    renderMemoFullscreen();
-    return;
-  }
-
-  const memo = getActiveCreateSetupMemo(w);
-  if (memo) resolveCurrentPageIdForDiary(memo);
-  const pages = memo?.pages ?? [];
-  const spread = computeBinderSpread(pages, currentPageId);
-
-  const leftSlot = book.querySelector('.memo-binder-sheet-slot--left');
-  const rightSlot = book.querySelector('.memo-binder-sheet-slot--right');
-
-  renderBinderSheetSlot(leftSlot, spread.leftPage, memo, { side: 'left' });
-  renderBinderSheetSlot(rightSlot, spread.rightPage, memo, {
-    side: 'right',
-    emptyMessage: !pages.length ? '아직 추가된 페이지가 없습니다.' : null,
-    showBlankSheet: pages.length > 0 && spread.leftPage && !spread.rightPage,
-  });
-
-  const stage = book.closest('.memo-create-setup-stage');
-  const nav = stage?.querySelector('.memo-binder-nav');
-  updateBinderPageNavState(nav, memo);
-}
-
-
-function navigateBinderSpread(w, direction) {
-  if (isPageTurning) return;
-
-  const memo = getActiveCreateSetupMemo(w);
-  const pages = memo?.pages ?? [];
-  if (!pages.length || !currentPageId) return;
-
-  const spread = computeBinderSpread(pages, currentPageId);
-  const targetSpread = spread.spreadIndex + direction;
-  if (targetSpread < 0 || targetSpread >= spread.spreadCount) return;
-
-  const newPageId = getTargetPageIdForSpread(pages, targetSpread);
-  if (!newPageId) return;
-
-  const book = dom.memoFullscreenBody?.querySelector('.memo-binder-book');
-  if (!book || prefersReducedMotion()) {
-    currentPageId = newPageId;
-    refreshBinderSpreadView(w);
-    return;
-  }
-
-  isPageTurning = true;
-  setBinderNavDisabled(book, true);
-
-  let animSheet;
-  let animClass;
-  if (direction > 0) {
-    animSheet = book.querySelector(
-      '.memo-binder-sheet-slot--right .memo-binder-sheet:not(.memo-binder-sheet--blank):not(.memo-binder-sheet--empty)'
-    );
-    animClass = 'memo-binder-sheet--turn-next';
-  } else {
-    animSheet = book.querySelector(
-      '.memo-binder-sheet-slot--left .memo-binder-sheet:not(.memo-binder-sheet--blank):not(.memo-binder-sheet--empty)'
-    );
-    if (animSheet) {
-      animClass = 'memo-binder-sheet--turn-prev';
-    } else {
-      animSheet = book.querySelector(
-        '.memo-binder-sheet-slot--right .memo-binder-sheet:not(.memo-binder-sheet--blank):not(.memo-binder-sheet--empty)'
-      );
-      animClass = 'memo-binder-sheet--turn-prev-out';
-    }
-  }
-
-  let finished = false;
-  const finish = () => {
-    if (finished) return;
-    finished = true;
-    if (animSheet) animSheet.classList.remove(animClass);
-    currentPageId = newPageId;
-    isPageTurning = false;
-    setBinderNavDisabled(book, false);
-    refreshBinderSpreadView(w);
-  };
-
-  if (!animSheet) {
-    finish();
-    return;
-  }
-
-  const onEnd = (e) => {
-    if (e.target !== animSheet) return;
-    animSheet.removeEventListener('animationend', onEnd);
-    finish();
-  };
-
-  animSheet.addEventListener('animationend', onEnd);
-  animSheet.classList.add(animClass);
-  window.setTimeout(finish, 520);
 }
 
 
@@ -3485,6 +3236,8 @@ export function openMemoFullscreen(widgetId) {
 export function closeMemoFullscreen() {
   const widgetId = activeMemoWidgetId;
 
+  closeMemoPagesPanel();
+
   if (widgetId) {
     editorDrafts.delete(widgetId);
     profileDrafts.delete(widgetId);
@@ -3545,6 +3298,7 @@ function openMemoCreateSetup() {
 
 function goBackFromCreateSetup() {
   const w = getActiveMemoWidget();
+  closeMemoPagesPanel();
   isMemoNoteMenuOpen = false;
   resetTemplatePopupSessionState();
   if (w) {
@@ -3553,7 +3307,6 @@ function goBackFromCreateSetup() {
   }
   currentDiaryId = null;
   currentPageId = null;
-  isPageTurning = false;
   fullscreenViewMode = 'home';
   selectedMemoId = null;
   renderMemoFullscreen();
@@ -4712,6 +4465,11 @@ export function bindMemoFullscreenEvents() {
           openTemplatePopup();
           return;
         }
+        if (menuItem.dataset.setupId === 'pages') {
+          closeMemoNoteMenu();
+          openMemoPagesOverlay(w);
+          return;
+        }
         showToast('준비 중인 기능입니다.');
         closeMemoNoteMenu();
         return;
@@ -4815,6 +4573,10 @@ export function bindMemoFullscreenEvents() {
       }
     }
     if (fullscreenViewMode !== 'createSetup') return;
+    if (isMemoPagesPanelOpen()) {
+      closeMemoPagesPanel();
+      return;
+    }
     if (isTemplatePopupOpen) {
       closeTemplatePopup();
       return;
