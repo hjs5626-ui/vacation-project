@@ -42,10 +42,14 @@ function renderOverviewGrid() {
     el.draggable = !!page;
     
     if (page) {
+      const locCount = page.mapLocations && page.mapLocations.length > 0 ? page.mapLocations.length : 0;
+      const locBadge = locCount > 0 ? `<div style="position: absolute; bottom: 5px; right: 5px; background: rgba(0,0,0,0.5); color: white; border-radius: 10px; padding: 2px 6px; font-size: 0.7rem;">🗺️ ${locCount}</div>` : '';
+      
       el.innerHTML = `
         <div style="font-size: 0.8rem; font-weight: bold; margin-bottom: 5px;">Pg ${index + 1}</div>
         <div style="font-size: 0.9rem;">${escapeHTML(page.title)}</div>
         <button class="delete-page" data-index="${index}">✕</button>
+        ${locBadge}
       `;
       
       // Simple Drag and Drop for reordering

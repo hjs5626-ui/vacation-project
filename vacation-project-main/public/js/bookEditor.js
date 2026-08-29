@@ -6,6 +6,7 @@ import { openDrawer } from './drawer.js';
 import { updateGridDimensionsFromContainer, buildLegoGrid } from './grid.js';
 import { rerenderPlacedWidgets } from './widgets.js';
 import { closeTodoDetailPanel } from './todo.js';
+import { initPageMap, destroyPageMap } from './pageMap.js';
 
 function ensurePageWidgets(pageData) {
   if (!pageData) return [];
@@ -40,6 +41,12 @@ export function openBookEditor(diary) {
 
 export function closeBookEditor() {
   closeTodoDetailPanel();
+  const mainPageEl = document.getElementById('page-main');
+  const prevActiveState = mainPageEl?.querySelector('.page-active-state');
+  if (prevActiveState && prevActiveState.dataset.pageId) {
+    destroyPageMap(prevActiveState.dataset.pageId);
+  }
+  
   state.currentDiary = null;
   dom.editorPage.classList.remove('active');
   dom.mainPage.classList.add('active');
@@ -50,6 +57,10 @@ export function renderBookSpread() {
 
   const mainPageEl = document.getElementById('page-main');
   
+  const prevActiveState = mainPageEl.querySelector('.page-active-state');
+  if (prevActiveState && prevActiveState.dataset.pageId) {
+    destroyPageMap(prevActiveState.dataset.pageId);
+  }
   
   const pages = state.currentDiary.pages || [];
   
@@ -86,8 +97,8 @@ function renderPage(container, pageData, pageIndex) {
             <button class="btn-archive" data-index="${pageIndex}" title="Send to Storage" style="font-size: 1.5rem; background: transparent; border: none; box-shadow: none;">📦</button>
           </div>
         </div>
-        <div class="page-map-preview">
-          <span>Map Location Area</span>
+        <div class="page-map-container" id="map-container-${pageData.id}">
+          <!-- Leaflet Map will be injected here -->
         </div>
         <div class="page-grid-container" style="flex: 1; position: relative; overflow: auto; padding: 10px;">
           <div class="page-grid lego-grid" id="grid-${pageData.id}" style="min-height: 100%;"></div>
@@ -131,6 +142,11 @@ function renderPage(container, pageData, pageIndex) {
       updateGridDimensionsFromContainer();
       buildLegoGrid();
       rerenderPlacedWidgets();
+      
+      const mapContainer = container.querySelector(`#map-container-${pageData.id}`);
+      if (mapContainer) {
+        initPageMap(mapContainer, pageData);
+      }
     });
   }
 }
@@ -146,7 +162,7 @@ function createNewPage(index) {
   state.currentDiary.pages[index] = {
     id: 'page-' + Date.now() + Math.random().toString(36).slice(2, 6),
     title: 'New Page',
-    mapLocation: null,
+    mapLocations: [],
     widgets: []
   };
   
